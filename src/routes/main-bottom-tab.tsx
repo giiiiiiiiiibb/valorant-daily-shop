@@ -4,7 +4,7 @@ import { createMaterialBottomTabNavigator } from "react-native-paper/react-navig
 import SvgShop from "@/components/icon/shop";
 import SvgUser from "@/components/icon/user";
 import SvgUsers from "@/components/icon/users";
-import SvgSettings from "@/components/icon/settings";
+import SvgSetting from "@/components/icon/setting";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // routes
@@ -58,7 +58,7 @@ const MainBottomTab = () => {
                     name="Settings"
                     component={Settings}
                     options={{
-                        tabBarIcon: ({ color }) => <SvgSettings color={color} />,
+                        tabBarIcon: ({ color }) => <SvgSetting color={color} />,
                     }}
                 />
             </BottomNavigation.Navigator>
