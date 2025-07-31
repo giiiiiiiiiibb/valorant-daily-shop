@@ -5,6 +5,7 @@ import { Image, StyleSheet, View } from "react-native";
 import Text from "@/components/typography/text";
 import Button from "@/components/button/button";
 import SvgLogout from "@/components/icon/logout";
+import SvgReorder from "@/components/icon/reorder";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // types
@@ -13,12 +14,26 @@ import { IUserData } from "@/types/context/user";
 import { getLevelBorder } from "@/utils/level-border";
 import { getCompetitiveTierIcon } from "@/utils/competitive-tier-icon";
 
-const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: {
+const UserItem = ({
+    index,
+    user,
+    handleLogin,
+    handleLogout,
+    handleRelogin,
+    isDefault,
+    onSetDefault,
+    showDragHandle = false,
+    drag,
+}: {
     index: number,
     user: IUserData,
     handleLogin: () => Promise<void>,
     handleLogout: () => void,
     handleRelogin: () => void,
+    isDefault?: boolean,
+    onSetDefault?: () => void,
+    showDragHandle?: boolean,
+    drag?: () => void,
 }): ReactElement => {
 
     const { colors } = useThemeContext();
@@ -68,7 +83,19 @@ const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: {
                             {user["rank"]} - {user["rr"]} RR
                         </Text>
                     </View>
+                    {typeof isDefault === "boolean" && onSetDefault && (
+                        <TouchableRipple onPress={onSetDefault}>
+                            <Text style={[styles.defaultText, { color: isDefault ? "green" : "#888" }]}>
+                                {isDefault ? "Default Account" : "Set as Default"}
+                            </Text>
+                        </TouchableRipple>
+                    )}
                 </View>
+                {showDragHandle && drag && (
+                    <TouchableRipple onPressIn={drag} style={styles.dragHandle}>
+                        <SvgReorder width={24} height={24} />
+                    </TouchableRipple>
+                )}
             </View>
             <View style={{ flexDirection: "row", gap: 16 }}>
                 <Button
@@ -138,6 +165,7 @@ const styles = StyleSheet.create({
     infoContainer: {
         gap: 8,
         padding: 16,
+        flex: 1,
     },
     rankContainer: {
         gap: 8,
@@ -153,6 +181,13 @@ const styles = StyleSheet.create({
     },
     title: {
         fontFamily: "Vandchrome",
+    },
+    defaultText: {
+        marginTop: 8,
+    },
+    dragHandle: {
+        padding: 8,
+        borderRadius: 8,
     },
 });
 
