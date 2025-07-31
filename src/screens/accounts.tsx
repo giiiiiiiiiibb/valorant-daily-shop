@@ -1,11 +1,14 @@
 import { Alert, StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import React, { ReactElement, useCallback } from "react";
+import React, { ReactElement, useCallback, useState } from "react";
 // components
 import Text from "@/components/typography/text";
 import Button from "@/components/button/button";
 import UserList from "@/components/account/user-list";
 import Tooltip from "@/components/tooltip";
+import SvgReorder from "@/components/icon/reorder";
+import SvgPlus from "@/components/icon/plus";
+import SvgLogout from "@/components/icon/logout";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // types
@@ -16,6 +19,7 @@ import user from "@/utils/users";
 const Accounts = (): ReactElement => {
     const { colors } = useThemeContext();
     const navigate = useNavigation<NavigationProp>();
+    const [reorderMode, setReorderMode] = useState(false);
 
     const handleAddAccount = useCallback(() => {
         navigate.navigate("Login");
@@ -47,9 +51,17 @@ const Accounts = (): ReactElement => {
             <View style={styles.header}>
                 <Text variant="displayMedium" style={styles.title}>Accounts</Text>
                 <View style={styles.actions}>
+                    <Tooltip text={reorderMode ? "Exit reorder mode" : "Reorder accounts"}>
+                        <Button
+                            icon={<SvgReorder />}
+                            onPress={() => setReorderMode((prev) => !prev)}
+                            style={styles.iconButton}
+                            variant="icon"
+                        />
+                    </Tooltip>
                     <Tooltip text="Add a new Riot account">
                         <Button
-                            icon={<Text style={styles.icon}>＋</Text>}
+                            icon={<SvgPlus />}
                             onPress={handleAddAccount}
                             style={styles.iconButton}
                             variant="icon"
@@ -57,7 +69,7 @@ const Accounts = (): ReactElement => {
                     </Tooltip>
                     <Tooltip text="Logout all accounts">
                         <Button
-                            icon={<Text style={styles.icon}>⇥</Text>}
+                            icon={<SvgLogout />}
                             onPress={handleLogoutAll}
                             style={styles.iconButton}
                             variant="icon"
@@ -66,7 +78,7 @@ const Accounts = (): ReactElement => {
                 </View>
             </View>
             <View style={styles.listContainer}>
-                <UserList />
+                <UserList reorderMode={reorderMode} />
             </View>
         </View>
     );
@@ -90,9 +102,6 @@ const styles = StyleSheet.create({
     actions: {
         flexDirection: "row",
         gap: 12,
-    },
-    icon: {
-        fontSize: 20,
     },
     iconButton: {
         padding: 8,
