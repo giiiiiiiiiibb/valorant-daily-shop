@@ -32,80 +32,60 @@ const newUser = {
 const user = {
     async getUserInfo(key: keyof IUserData): Promise<string | null | boolean> {
         const currentUser = await AsyncStorage.getItem("current_user");
-
-        if (!currentUser) {
-            return false;
-        }
+        if (!currentUser) return false;
 
         const users = await secureStore.getItem("users");
-
-        if (!users) {
-            return "";
-        }
+        if (!users) return "";
 
         const usersData: IUsersData = JSON.parse(users);
-
-        if (usersData && usersData[currentUser] && usersData[currentUser][key]) {
-            return usersData[currentUser][key];
-        }
-        return "";
+        return usersData?.[currentUser]?.[key] ?? "";
     },
 
     async removeUser(userKey: string): Promise<void> {
         const users = await secureStore.getItem("users");
-
-        if (!users) {
-            return;
-        }
+        if (!users) return;
 
         const usersData: IUsersData = JSON.parse(users);
-
-        if (usersData && usersData[userKey]) {
+        if (usersData?.[userKey]) {
             delete usersData[userKey];
             await secureStore.setItem("users", JSON.stringify(usersData));
         }
-    },
 
-    async setUserInfo(key: keyof IUserData, value: string | boolean): Promise<void> {
         const currentUser = await AsyncStorage.getItem("current_user");
+        const defaultUser = await AsyncStorage.getItem("default_user");
+        if (currentUser === userKey) await AsyncStorage.removeItem("current_user");
+        if (defaultUser === userKey) await AsyncStorage.removeItem("default_user");
 
-        if (!currentUser) {
-            return;
-        }
-
-        const users = await secureStore.getItem("users");
-
-        if (!users) {
-            const usersData: IUsersData = {};
-            usersData[currentUser] = newUser;
-            // @ts-ignore
-            usersData[currentUser][key] = value;
-            await secureStore.setItem("users", JSON.stringify(usersData));
-            return;
-        }
-
-        const usersData: IUsersData = JSON.parse(users);
-
-        if (!usersData[currentUser]) {
-            usersData[currentUser] = newUser;
-        }
-
-        // @ts-ignore
-        usersData[currentUser][key] = value;
-        await secureStore.setItem("users", JSON.stringify(usersData));
+        const order = await user.getUserOrder();
+        const updatedOrder = order.filter(u => u !== userKey);
+        await user.setUserOrder(updatedOrder);
     },
 
-    async getAllUsers(): Promise<IUsersData> {
-        const users = await secureStore.getItem("users");
+    async setDefaultUser(username: string): Promise<void> {
+        await AsyncStorage.setItem("default_user", username);
+    },
 
-        if (!users) {
-            console.error("No users found");
-            return {};
-        }
+    async getDefaultUser(): Promise<string | null> {
+        return await AsyncStorage.getItem("default_user");
+    },
 
-        return JSON.parse(users);
+    async setUserOrder(order: string[]): Promise<void> {
+        await AsyncStorage.setItem("user_order", JSON.stringify(order));
+    },
+
+    async getUserOrder(): Promise<string[]> {
+        const raw = await AsyncStorage.getItem("user_order");
+        return raw ? JSON.parse(raw) : [];
+    },
+
+    async logoutAll(): Promise<void> {
+        await secureStore.removeItem("users");
+        await AsyncStorage.multiRemove([
+            "current_user",
+            "default_user",
+            "user_order"
+        ]);
     },
 };
-
 
 export default user;
