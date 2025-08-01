@@ -5,7 +5,8 @@ import { Image, StyleSheet, View } from "react-native";
 import Text from "@/components/typography/text";
 import Button from "@/components/button/button";
 import SvgLogout from "@/components/icon/logout";
-import SvgReorder from "@/components/icon/reorder";
+import SvgStarFilled from "@/components/icon/star-filled";
+import SvgStarOutline from "@/components/icon/star-outline";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // types
@@ -17,25 +18,20 @@ import { getCompetitiveTierIcon } from "@/utils/competitive-tier-icon";
 const UserItem = ({
     index,
     user,
+    isDefault,
     handleLogin,
     handleLogout,
     handleRelogin,
-    isDefault,
     onSetDefault,
-    showDragHandle = false,
-    drag,
 }: {
-    index: number,
-    user: IUserData,
-    handleLogin: () => Promise<void>,
-    handleLogout: () => void,
-    handleRelogin: () => void,
-    isDefault?: boolean,
-    onSetDefault?: () => void,
-    showDragHandle?: boolean,
-    drag?: () => void,
+    index: number;
+    user: IUserData;
+    isDefault: boolean;
+    handleLogin: () => Promise<void>;
+    handleLogout: () => void;
+    handleRelogin: () => void;
+    onSetDefault: (uuid: string) => void;
 }): ReactElement => {
-
     const { colors } = useThemeContext();
     const [loading, setLoading] = useState(false);
 
@@ -83,28 +79,16 @@ const UserItem = ({
                             {user["rank"]} - {user["rr"]} RR
                         </Text>
                     </View>
-                    {typeof isDefault === "boolean" && onSetDefault && (
-                        <TouchableRipple onPress={onSetDefault}>
-                            <Text style={[styles.defaultText, { color: isDefault ? "green" : "#888" }]}>
-                                {isDefault ? "Default Account" : "Set as Default"}
-                            </Text>
-                        </TouchableRipple>
-                    )}
                 </View>
-                {showDragHandle && drag && (
-                    <TouchableRipple onPressIn={drag} style={styles.dragHandle}>
-                        <SvgReorder width={24} height={24} />
-                    </TouchableRipple>
-                )}
             </View>
-            <View style={{ flexDirection: "row", gap: 16 }}>
-                <Button
-                    text="Select"
-                    onPress={login}
-                    loading={loading}
-                    underlayColor="#222429"
-                    backgroundColor={colors.primary}
-                />
+            <View style={{ flexDirection: "row", gap: 16, justifyContent: "flex-end" }}>
+                <TouchableRipple
+                    onPress={() => onSetDefault(user.uuid)}
+                    rippleColor="rgba(255, 215, 0, .2)"
+                    style={{ padding: 16, borderRadius: 16, backgroundColor: colors.background }}
+                >
+                    {isDefault ? <SvgStarFilled /> : <SvgStarOutline />}
+                </TouchableRipple>
                 <TouchableRipple
                     style={{ padding: 16, backgroundColor: colors.background, borderRadius: 16 }}
                     onPress={handleLogout}
@@ -113,6 +97,13 @@ const UserItem = ({
                 >
                     <SvgLogout color={colors.primary} />
                 </TouchableRipple>
+                <Button
+                    text="Select"
+                    onPress={login}
+                    loading={loading}
+                    underlayColor="#222429"
+                    backgroundColor={colors.primary}
+                />
             </View>
         </View>
     );
@@ -165,7 +156,6 @@ const styles = StyleSheet.create({
     infoContainer: {
         gap: 8,
         padding: 16,
-        flex: 1,
     },
     rankContainer: {
         gap: 8,
@@ -178,16 +168,6 @@ const styles = StyleSheet.create({
     },
     rankText: {
         opacity: 0.5,
-    },
-    title: {
-        fontFamily: "Vandchrome",
-    },
-    defaultText: {
-        marginTop: 8,
-    },
-    dragHandle: {
-        padding: 8,
-        borderRadius: 8,
     },
 });
 
