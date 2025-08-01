@@ -1,91 +1,67 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-// types
-import { IUserData, IUsersData } from "@/types/context/user";
 // utils
 import secureStore from "@/utils/secure-store";
+// types
+import { IUserData } from "@/types/context/user";
 
-// const
-const newUser = {
-    stay_sign_in: "",
-    access_token: "",
-    id_token: "",
-    entitlements_token: "",
-    sub: "",
-    tdid: "",
-    asid: "",
-    clid: "",
-    ssid: "",
-    game_name: "",
-    tag_line: "",
-    pp: "",
-    radianite_point: "",
-    valorant_point: "",
-    kingdom_credit: "",
-    logged: false,
-    rank: "",
-    rr: "",
-    level: "",
-    xp: "",
-    player_card_id: "",
-};
+const USER_LIST_KEY = "riot_users";
+const DEFAULT_USER_KEY = "default_user";
+
+const buildSecureKey = (uuid: string): string => `riot_tokens_${uuid}`;
 
 const user = {
-    async getUserInfo(key: keyof IUserData): Promise<string | null | boolean> {
-        const currentUser = await AsyncStorage.getItem("current_user");
-        if (!currentUser) return false;
-
-        const users = await secureStore.getItem("users");
-        if (!users) return "";
-
-        const usersData: IUsersData = JSON.parse(users);
-        return usersData?.[currentUser]?.[key] ?? "";
-    },
-
-    async removeUser(userKey: string): Promise<void> {
-        const users = await secureStore.getItem("users");
-        if (!users) return;
-
-        const usersData: IUsersData = JSON.parse(users);
-        if (usersData?.[userKey]) {
-            delete usersData[userKey];
-            await secureStore.setItem("users", JSON.stringify(usersData));
-        }
-
-        const currentUser = await AsyncStorage.getItem("current_user");
-        const defaultUser = await AsyncStorage.getItem("default_user");
-        if (currentUser === userKey) await AsyncStorage.removeItem("current_user");
-        if (defaultUser === userKey) await AsyncStorage.removeItem("default_user");
-
-        const order = await user.getUserOrder();
-        const updatedOrder = order.filter(u => u !== userKey);
-        await user.setUserOrder(updatedOrder);
-    },
-
-    async setDefaultUser(username: string): Promise<void> {
-        await AsyncStorage.setItem("default_user", username);
-    },
-
-    async getDefaultUser(): Promise<string | null> {
-        return await AsyncStorage.getItem("default_user");
-    },
-
-    async setUserOrder(order: string[]): Promise<void> {
-        await AsyncStorage.setItem("user_order", JSON.stringify(order));
-    },
-
-    async getUserOrder(): Promise<string[]> {
-        const raw = await AsyncStorage.getItem("user_order");
+    async getAllUsers(): Promise<IUserData[]> {
+        const raw = await AsyncStorage.getItem(USER_LIST_KEY);
         return raw ? JSON.parse(raw) : [];
     },
 
-    async logoutAll(): Promise<void> {
-        await secureStore.removeItem("users");
-        await AsyncStorage.multiRemove([
-            "current_user",
-            "default_user",
-            "user_order"
-        ]);
+    async getDefaultUser(): Promise<string | null> {
+        return await AsyncStorage.getItem(DEFAULT_USER_KEY);
     },
+
+    getDefaultUserSync(): string | null {
+        let value: string | null = null;
+        AsyncStorage.getItem(DEFAULT_USER_KEY).then(v => value = v);
+        return value;
+    },
+
+    async setDefaultUser(uuid: string): Promise<void> {
+        await AsyncStorage.setItem(DEFAULT_USER_KEY, uuid);
+    },
+
+    async setUser(user: IUserData, tokens: Record<string, string>): Promise<void> {
+        const users = await this.getAllUsers();
+        const existing = users.findIndex(u => u.uuid === user.uuid);
+        if (existing !== -1) users[existing] = user;
+        else users.push(user);
+        await AsyncStorage.setItem(USER_LIST_KEY, JSON.stringify(users));
+        await secureStore.setItem(buildSecureKey(user.uuid), JSON.stringify(tokens));
+    },
+
+    async getUserTokens(uuid: string): Promise<Record<string, string> | null> {
+        const data = await secureStore.getItem(buildSecureKey(uuid));
+        return data ? JSON.parse(data) : null;
+    },
+
+    async logout(user: IUserData): Promise<void> {
+        const users = await this.getAllUsers();
+        const filtered = users.filter(u => u.uuid !== user.uuid);
+        await AsyncStorage.setItem(USER_LIST_KEY, JSON.stringify(filtered));
+        await secureStore.removeItem(buildSecureKey(user.uuid));
+
+        const defaultUser = await this.getDefaultUser();
+        if (defaultUser === user.uuid) await AsyncStorage.removeItem(DEFAULT_USER_KEY);
+    },
+
+    async logoutAll(): Promise<void> {
+        const users = await this.getAllUsers();
+        await Promise.all(users.map(u => secureStore.removeItem(buildSecureKey(u.uuid))));
+        await AsyncStorage.multiRemove([USER_LIST_KEY, DEFAULT_USER_KEY]);
+    },
+
+    async reorderUsers(data: IUserData[]): Promise<void> {
+        await AsyncStorage.setItem(USER_LIST_KEY, JSON.stringify(data));
+    }
 };
 
 export default user;
