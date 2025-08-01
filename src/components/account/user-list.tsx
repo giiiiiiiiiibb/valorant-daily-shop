@@ -1,120 +1,90 @@
-import React, { useCallback, useState, useEffect } from "react";
-import { View } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import React, { useCallback, useEffect, useState } from "react";
 import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
-// contexts
-import useAuthContext from "@/contexts/hook/use-auth-context";
+import { View } from "react-native";
 // components
 import UserItem from "@/components/account/user-item";
+// contexts
+import useAuthContext from "@/contexts/hook/use-auth-context";
+import useUserContext from "@/contexts/hook/use-user-context";
 // types
-import { IUsersData } from "@/types/context/user";
-import { NavigationProp } from "@/types/router/navigation";
+import { IUserData } from "@/types/context/user";
+import { EAuthContextType } from "@/types/context/auth";
 // utils
-import user from "@/utils/users";
-import secureStore from "@/utils/secure-store";
+import userUtil from "@/utils/users";
 
-type Props = {
-    reorderMode: boolean;
-};
+const UserList = ({ reorderMode = false }: { reorderMode?: boolean }) => {
+    const { users, setUsers, currentUser } = useUserContext();
+    const { dispatch } = useAuthContext();
 
-const UserList = ({ reorderMode }: Props) => {
-    const [users, setUsers] = useState<IUsersData>({});
-    const [order, setOrder] = useState<string[]>([]);
-    const [defaultUser, setDefaultUser] = useState<string | null>(null);
+    const [orderedUsers, setOrderedUsers] = useState<IUserData[]>([]);
 
-    const { login } = useAuthContext();
-    const navigate = useNavigation<NavigationProp>();
+    useEffect(() => {
+        const sorted = [...(users || [])];
+        sorted.sort((a, b) => (a.uuid === userUtil.getDefaultUserSync() ? -1 : b.uuid === userUtil.getDefaultUserSync() ? 1 : 0));
+        setOrderedUsers(sorted);
+    }, [users]);
 
-    const loadUsers = useCallback(async () => {
-        const raw = await secureStore.getItem("users");
-        const userOrder = await user.getUserOrder();
-        const defaultU = await user.getDefaultUser();
+    const handleLogin = async (user: IUserData) => {
+        await userUtil.setUser(user);
+        dispatch({
+            type: EAuthContextType.LOGIN,
+            payload: { currentUser: user },
+        });
+    };
 
-        if (raw) {
-            const parsed: IUsersData = JSON.parse(raw);
-            setUsers(parsed);
-
-            const sorted = userOrder.filter(id => parsed[id]);
-            const fallback = Object.keys(parsed).filter(id => !userOrder.includes(id));
-            setOrder([...sorted, ...fallback]);
+    const handleLogout = async (user: IUserData) => {
+        await userUtil.logout(user);
+        const updatedUsers = (await userUtil.getAllUsers()).filter((u) => u.uuid !== user.uuid);
+        setUsers(updatedUsers);
+        if (currentUser?.uuid === user.uuid) {
+            dispatch({
+                type: EAuthContextType.INITIAL,
+                payload: { currentUser: null },
+            });
         }
-
-        setDefaultUser(defaultU);
-    }, []);
-
-    useFocusEffect(
-        useCallback(() => {
-            loadUsers();
-        }, [loadUsers])
-    );
-
-    const handleLogout = useCallback(
-        (username: string) => navigate.navigate("Logout", { username }),
-        [navigate]
-    );
-
-    const handleLogin = useCallback(
-        async (username: string) => {
-            await AsyncStorage.setItem("current_user", username);
-
-            const access_token = await user.getUserInfo("access_token");
-            const id_token = await user.getUserInfo("id_token");
-
-            if (typeof access_token !== "string" || typeof id_token !== "string") {
-                return;
-            }
-
-            await secureStore.setItem("access_token", access_token);
-            await secureStore.setItem("id_token", id_token);
-            await login();
-        },
-        [login]
-    );
+    };
 
     const handleRelogin = () => {
-        loadUsers();
+        dispatch({ type: EAuthContextType.INITIAL, payload: { currentUser: null } });
     };
 
-    const handleSetDefault = async (username: string) => {
-        await user.setDefaultUser(username);
-        setDefaultUser(username);
+    const handleSetDefault = async (id: string) => {
+        await userUtil.setDefaultUser(id);
+        const all = await userUtil.getAllUsers();
+        setUsers(all);
     };
 
-    const renderItem = ({ item, drag, isActive, index }: RenderItemParams<string>) => {
-        const u = users[item];
-        if (!u) return null;
-
-        return (
+    const renderItem = useCallback(({ item, drag, isActive }: RenderItemParams<IUserData>) => (
+        <View style={{ opacity: isActive ? 0.9 : 1 }}>
             <UserItem
-                index={index}
-                user={u}
+                index={0}
+                user={item}
+                isDefault={item.uuid === userUtil.getDefaultUserSync()}
                 handleLogin={() => handleLogin(item)}
                 handleLogout={() => handleLogout(item)}
                 handleRelogin={handleRelogin}
-                isDefault={defaultUser === item}
-                onSetDefault={() => handleSetDefault(item)}
-                showDragHandle={reorderMode}
-                drag={reorderMode ? drag : undefined}
+                onSetDefault={handleSetDefault}
             />
-        );
+        </View>
+    ), []);
+
+    const handleDragEnd = async ({ data }: { data: IUserData[] }) => {
+        setOrderedUsers(data);
+        await userUtil.reorderUsers(data);
+        const all = await userUtil.getAllUsers();
+        setUsers(all);
     };
 
     return (
-        <View style={{ flex: 1 }}>
-            <DraggableFlatList
-                data={order}
-                keyExtractor={(item) => item}
-                onDragEnd={({ data }) => {
-                    setOrder(data);
-                    user.setUserOrder(data);
-                }}
-                renderItem={renderItem}
-                scrollEnabled
-                activationDistance={8}
-                containerStyle={{ paddingBottom: 32 }}
-            />
-        </View>
+        <DraggableFlatList
+            data={orderedUsers}
+            keyExtractor={(item) => item.uuid}
+            renderItem={renderItem}
+            onDragEnd={handleDragEnd}
+            scrollEnabled
+            containerStyle={{ gap: 16 }}
+            activationDistance={reorderMode ? 1 : Number.MAX_SAFE_INTEGER}
+        />
     );
 };
 
