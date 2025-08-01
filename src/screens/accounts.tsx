@@ -5,7 +5,6 @@ import React, { ReactElement, useCallback, useState } from "react";
 import Text from "@/components/typography/text";
 import Button from "@/components/button/button";
 import UserList from "@/components/account/user-list";
-import Tooltip from "@/components/tooltip";
 import SvgReorder from "@/components/icon/reorder";
 import SvgPlus from "@/components/icon/plus";
 import SvgLogout from "@/components/icon/logout";
@@ -17,98 +16,92 @@ import { NavigationProp } from "@/types/router/navigation";
 import user from "@/utils/users";
 
 const Accounts = (): ReactElement => {
-    const { colors } = useThemeContext();
-    const navigate = useNavigation<NavigationProp>();
-    const [reorderMode, setReorderMode] = useState(false);
+    const { colors } = useThemeContext();
+    const navigate = useNavigation<NavigationProp>();
+    const [reorderMode, setReorderMode] = useState(false);
 
-    const handleAddAccount = useCallback(() => {
-        navigate.navigate("Login");
-    }, [navigate]);
+    const handleAddAccount = useCallback(() => {
+        navigate.navigate("Login");
+    }, [navigate]);
 
-    const handleLogoutAll = useCallback(() => {
-        Alert.alert(
-            "Logout All Accounts",
-            "Are you sure you want to log out of all Riot accounts?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Logout All",
-                    style: "destructive",
-                    onPress: async () => {
-                        await user.logoutAll();
-                        navigate.reset({
-                            index: 0,
-                            routes: [{ name: "Accounts" }],
-                        });
-                    },
-                },
-            ]
-        );
-    }, [navigate]);
+    const handleLogoutAll = useCallback(() => {
+        Alert.alert(
+            "Logout All Accounts",
+            "Are you sure you want to log out of all Riot accounts?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Logout All",
+                    style: "destructive",
+                    onPress: async () => {
+                        await user.logoutAll();
+                        navigate.reset({
+                            index: 0,
+                            routes: [{ name: "Accounts" }],
+                        });
+                    },
+                },
+            ]
+        );
+    }, [navigate]);
 
-    return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={styles.header}>
-                <Text variant="displayMedium" style={styles.title}>Accounts</Text>
-                <View style={styles.actions}>
-                    <Tooltip text={reorderMode ? "Exit reorder mode" : "Reorder accounts"}>
-                        <Button
-                            icon={<SvgReorder />}
-                            onPress={() => setReorderMode((prev) => !prev)}
-                            style={styles.iconButton}
-                            variant="icon"
-                        />
-                    </Tooltip>
-                    <Tooltip text="Add a new Riot account">
-                        <Button
-                            icon={<SvgPlus />}
-                            onPress={handleAddAccount}
-                            style={styles.iconButton}
-                            variant="icon"
-                        />
-                    </Tooltip>
-                    <Tooltip text="Logout all accounts">
-                        <Button
-                            icon={<SvgLogout />}
-                            onPress={handleLogoutAll}
-                            style={styles.iconButton}
-                            variant="icon"
-                        />
-                    </Tooltip>
-                </View>
-            </View>
-            <View style={styles.listContainer}>
-                <UserList reorderMode={reorderMode} />
-            </View>
-        </View>
-    );
+    return (
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <View style={styles.header}>
+                <Text variant="displayMedium" style={styles.title}>Accounts</Text>
+                <View style={styles.actions}>
+                    <Button
+                        icon={<SvgReorder />}
+                        onPress={() => setReorderMode((prev) => !prev)}
+                        style={styles.iconButton}
+                        variant="icon"
+                    />
+                    <Button
+                        icon={<SvgPlus />}
+                        onPress={handleAddAccount}
+                        style={styles.iconButton}
+                        variant="icon"
+                    />
+                    <Button
+                        icon={<SvgLogout />}
+                        onPress={handleLogoutAll}
+                        style={styles.iconButton}
+                        variant="icon"
+                    />
+                </View>
+            </View>
+            <View style={styles.listContainer}>
+                <UserList reorderMode={reorderMode} />
+            </View>
+        </View>
+    );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingHorizontal: 16,
-        paddingTop: 16,
-    },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-    },
-    title: {
-        fontWeight: "bold",
-    },
-    actions: {
-        flexDirection: "row",
-        gap: 12,
-    },
-    iconButton: {
-        padding: 8,
-    },
-    listContainer: {
-        flex: 1,
-    },
+    container: {
+        flex: 1,
+        paddingHorizontal: 16,
+        paddingTop: 16,
+    },
+    header: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    title: {
+        fontWeight: "bold",
+    },
+    actions: {
+        flexDirection: "row",
+        gap: 12,
+    },
+    iconButton: {
+        padding: 8,
+    },
+    listContainer: {
+        flex: 1,
+    },
 });
 
 export default Accounts;
