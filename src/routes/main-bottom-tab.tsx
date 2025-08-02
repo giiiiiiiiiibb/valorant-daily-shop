@@ -6,26 +6,22 @@ import SvgShop from "@/components/icon/shop";
 import SvgUser from "@/components/icon/user";
 import SvgUsers from "@/components/icon/users";
 import SvgSetting from "@/components/icon/setting";
+import Header from "@/routes/navigation/header";
 // contexts
 import useAuthContext from "@/contexts/hook/use-auth-context";
 import useThemeContext from "@/contexts/hook/use-theme-context";
 import useUserContext from "@/contexts/hook/use-user-context";
 // routes
-import Header from "@/routes/navigation/header";
 import StoreStackScreen from "@/routes/store-stack-screen";
 // screens
 import ProfileScreen from "@/screens/profile/profile-screen";
 import SettingsScreen from "@/screens/settings";
-// types
-import { EAuthContextType } from "@/types/context/auth";
 
 const BottomNavigation = createMaterialBottomTabNavigator();
 
 const MainBottomTab = () => {
     const { colors } = useThemeContext();
-    const { dispatch } = useAuthContext();
     const { users } = useUserContext();
-
     const initialRoute = users && users.length > 0 ? "Shops" : "Accounts";
 
     return (
