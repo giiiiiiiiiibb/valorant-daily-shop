@@ -1,8 +1,6 @@
 import React, { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-// components
-import TabHeader from "@/components/header/tab-header";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // screens
@@ -40,7 +38,6 @@ const ProfileScreen = () => {
 
     return (
         <View style={styles.container}>
-            <TabHeader title="profile" />
             <Tab.Navigator {...tabNavigatorOptions}>
                 <Tab.Screen name="Collection" component={CollectionView} />
                 <Tab.Screen name="Agents" component={AgentsView} />
