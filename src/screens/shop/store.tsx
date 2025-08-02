@@ -1,8 +1,6 @@
 import React, { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { createMaterialTopTabNavigator } from "@react-navigation/material-top-tabs";
-// components
-import TabHeader from "@/components/header/tab-header";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
 import usePluginContext from "@/contexts/hook/use-plugin-context";
@@ -48,7 +46,6 @@ const Store = () => {
 
     return (
         <View style={styles.container}>
-            <TabHeader title="store" />
             <Tab.Navigator {...tabNavigatorOptions}>
                 <Tab.Screen name="Bundles" component={BundleView} />
                 <Tab.Screen name="Daily shop" component={DailyShop} />
