@@ -58,7 +58,7 @@ const Router = (): ReactElement | null => {
     return (
         <>
             <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-            <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={!!currentUser ? "Shops" : "Accounts"}>
+            <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Accounts">
                 {currentUser == null ? (
                     <>
                         <Stack.Screen name="Accounts" component={Accounts} />
