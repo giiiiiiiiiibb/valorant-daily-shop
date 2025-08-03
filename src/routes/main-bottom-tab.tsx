@@ -5,6 +5,7 @@ import { createMaterialBottomTabNavigator } from "react-native-paper/react-navig
 import SvgShop from "@/components/icon/shop";
 import SvgUser from "@/components/icon/user";
 import SvgUsers from "@/components/icon/users";
+import SvgSetting from "@/components/icon/setting";
 // contexts
 import useAuthContext from "@/contexts/hook/use-auth-context";
 import useThemeContext from "@/contexts/hook/use-theme-context";
@@ -13,6 +14,7 @@ import Header from "@/routes/navigation/header";
 import StoreStackScreen from "@/routes/store-stack-screen";
 // screens
 import ProfileScreen from "@/screens/profile/profile-screen";
+import SettingsScreen from "@/screens/settings";
 // types
 import { EAuthContextType } from "@/types/context/auth";
 
@@ -29,7 +31,7 @@ const MainBottomTab = () => {
             <Header />
             <BottomNavigation.Navigator
                 sceneAnimationEnabled
-                initialRouteName="shop"
+                initialRouteName="Shops"
                 inactiveColor="#7A7B7E"
                 activeColor={colors.primary}
                 sceneAnimationType="shifting"
@@ -37,14 +39,14 @@ const MainBottomTab = () => {
                 barStyle={{ justifyContent: "center", backgroundColor: "#1B1D21" }}
             >
                 <BottomNavigation.Screen
-                    name="shop"
+                    name="Shops"
                     component={StoreStackScreen}
                     options={{
                         tabBarIcon: ({ color }) => <SvgShop color={color} />,
                     }}
                 />
                 <BottomNavigation.Screen
-                    name="profile"
+                    name="Profile"
                     component={ProfileScreen}
                     options={{
                         tabBarIcon: ({ color }) => <SvgUser color={color} />,
@@ -66,6 +68,13 @@ const MainBottomTab = () => {
                                 },
                             });
                         },
+                    }}
+                />
+                <BottomNavigation.Screen
+                    name="Settings"
+                    component={SettingsScreen}
+                    options={{
+                        tabBarIcon: ({ color }) => <SvgSetting color={color} />,
                     }}
                 />
             </BottomNavigation.Navigator>
