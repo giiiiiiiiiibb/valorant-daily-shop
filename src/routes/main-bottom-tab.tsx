@@ -14,6 +14,7 @@ import Header from "@/routes/navigation/header";
 import StoreStackScreen from "@/routes/store-stack-screen";
 // screens
 import ProfileScreen from "@/screens/profile/profile-screen";
+import AccountsScreen from "@/screens/accounts";
 import SettingsScreen from "@/screens/settings";
 // types
 import { EAuthContextType } from "@/types/context/auth";
@@ -54,20 +55,9 @@ const MainBottomTab = () => {
                 />
                 <BottomNavigation.Screen
                     name="Accounts"
-                    component={() => null}
+                    component={AccountsScreen}
                     options={{
                         tabBarIcon: ({ color }) => <SvgUsers color={color} />,
-                    }}
-                    listeners={{
-                        tabPress: async () => {
-                            await AsyncStorage.removeItem("current_user");
-                            dispatch({
-                                type: EAuthContextType.INITIAL,
-                                payload: {
-                                    currentUser: null,
-                                },
-                            });
-                        },
                     }}
                 />
                 <BottomNavigation.Screen
