@@ -20,9 +20,6 @@ const Accounts = (): ReactElement => {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={styles.header}>
-                <Text variant="displayMedium" style={styles.title}>Accounts</Text>
-            </View>
             <View style={styles.listContainer}>
                 <UserList />
                 <View style={styles.buttonContainer}>
@@ -43,12 +40,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    header: {
-        alignItems: "center",
-        flexDirection: "row",
-        justifyContent: "space-between",
-        paddingHorizontal: 16,
-    },
     listContainer: {
         flex: 1,
     },
@@ -62,9 +53,6 @@ const styles = StyleSheet.create({
         borderRadius: 32,
         flexDirection: "row",
         justifyContent: "space-between",
-    },
-    title: {
-        fontFamily: "Vandchrome",
     },
 });
 
