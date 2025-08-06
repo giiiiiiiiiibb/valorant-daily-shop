@@ -3,7 +3,7 @@ import axios, { AxiosResponse } from "axios";
 import secureStore from "@/utils/secure-store";
 
 const authLogic = {
-    getEntitlement: async (): Promise<undefined> => {
+    getEntitlement: async (): Promise<void> => {
         const accessToken = await secureStore.getItem("access_token");
 
         if (!accessToken) {
@@ -20,12 +20,17 @@ const authLogic = {
             data: {},
         };
 
-        const response: AxiosResponse<{ entitlements_token: string }> = await axios.request(options);
-        const entitlementsToken: string = response.data?.entitlements_token;
+        const response = await axios.request(options);
 
-        if (!entitlementsToken) throw new Error("Entitlements token not found");
-
-        await secureStore.setItem("entitlements_token", entitlementsToken);
+        if (
+            response.headers["content-type"]?.includes("application/json") &&
+            typeof response.data === "object" &&
+            response.data.entitlements_token
+        ) {
+            await secureStore.setItem("entitlements_token", response.data.entitlements_token);
+        } else {
+            throw new Error(`Unexpected response format: ${JSON.stringify(response.data)}`);
+        }
     },
 };
 
