@@ -1,5 +1,5 @@
 import { StatusBar } from "react-native";
-import React, { ReactElement, useMemo } from "react";
+import React, { ReactElement } from "react";
 import { IconButton } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -28,10 +28,16 @@ import { RootStackParamList } from "@/types/router/navigation";
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const Router = (): ReactElement | null => {
+
     // Call the useGetThemeByIdQuery hook to obtain theme data to improve performance.
-    const { isLoading: isLoadingTheme } = useGetThemeByIdQuery("");
+    const {
+        isLoading: isLoadingTheme,
+    } = useGetThemeByIdQuery("");
+
     const { currentUser, isInitialized } = useAuthContext();
+
     const { colors } = useThemeContext();
+
     const navigation = useNavigation();
 
     if (!isInitialized || isLoadingTheme) return null;
@@ -58,7 +64,8 @@ const Router = (): ReactElement | null => {
     return (
         <>
             <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-            <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={!!currentUser ? "Home" : "Accounts"}>
+            
+            <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Accounts">
                 {currentUser == null ? (
                     <>
                         <Stack.Screen name="Accounts" component={Accounts} />
