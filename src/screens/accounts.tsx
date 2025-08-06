@@ -2,7 +2,6 @@ import { StyleSheet, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import React, { ReactElement, useCallback } from "react";
 // components
-import Text from "@/components/typography/text";
 import Button from "@/components/button/button";
 import UserList from "@/components/account/user-list";
 // contexts
@@ -11,12 +10,12 @@ import useThemeContext from "@/contexts/hook/use-theme-context";
 import { NavigationProp } from "@/types/router/navigation";
 
 const Accounts = (): ReactElement => {
-
     const { colors } = useThemeContext();
-
     const navigate = useNavigation<NavigationProp>();
 
-    const handleAddAccount = useCallback(() => navigate.navigate("Login"), [navigate]);
+    const handleAddAccount = useCallback(() => {
+        navigate.navigate("Login");
+    }, [navigate]);
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -24,8 +23,7 @@ const Accounts = (): ReactElement => {
                 <UserList />
                 <View style={styles.buttonContainer}>
                     <Button
-                        icon={<Text>+</Text>}
-                        text="Add Account"
+                        text="+ Add Account"
                         onPress={handleAddAccount}
                         underlayColor="#222429"
                         backgroundColor={colors.primary}
