@@ -20,7 +20,7 @@ import SprayDetails from "@/screens/offer-details/spray-details";
 import PlayerCardDetails from "@/screens/offer-details/player-card-details";
 import CollectionDetailsScreen from "@/screens/profile/collection/collection-details-screen";
 // routes
-import Header from "@/routes/navigation/header";
+import TabHeader from "@/routes/navigation/tab-header";
 import TabBar from "@/routes/navigation/tab-bar";
 // types
 import { RootStackParamList } from "@/types/router/navigation";
@@ -38,7 +38,7 @@ const Router = (): ReactElement | null => {
     const optionsDetailsScreen = {
         headerShown: true,
         header: () => (
-            <Header
+            <TabHeader
                 leftComponent={
                     <IconButton
                         size={32}
