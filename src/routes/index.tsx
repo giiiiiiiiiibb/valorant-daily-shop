@@ -21,7 +21,7 @@ import PlayerCardDetails from "@/screens/offer-details/player-card-details";
 import CollectionDetailsScreen from "@/screens/profile/collection/collection-details-screen";
 // routes
 import Header from "@/routes/navigation/header";
-import MainBottomTab from "@/routes/main-bottom-tab";
+import TabBar from "@/routes/navigation/tab-bar";
 // types
 import { RootStackParamList } from "@/types/router/navigation";
 
