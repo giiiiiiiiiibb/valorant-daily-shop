@@ -14,7 +14,7 @@ type Props = {
     activeTab: string;
 };
 
-const Header = ({ activeTab }: Props) => {
+const TabHeader = ({ activeTab }: Props) => {
     const { colors } = useThemeContext();
     const { balance, gameName, tagLine } = useUserContext();
     const { logoutAll } = useAuthContext();
@@ -89,4 +89,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Header;
+export default TabHeader;
