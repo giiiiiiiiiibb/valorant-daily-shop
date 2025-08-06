@@ -56,7 +56,7 @@ const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: {
                 </View>
                 <View style={styles.infoContainer}>
                     <Text variant="headlineSmall">
-                        {user["game_name"]} #{user["tag_line"]}
+                        {user["game_name"]}#{user["tag_line"]}
                     </Text>
                     <View style={styles.rankContainer}>
                         <Image
