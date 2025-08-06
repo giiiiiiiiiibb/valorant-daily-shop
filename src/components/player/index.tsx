@@ -50,6 +50,8 @@ const Player: React.FC<PlayerProps> = ({ source, onClose, ...props }) => {
         setVideoLayout({ width, height });
     }, []);
 
+    const { key, ...rest } = props;
+
     return (
         <View style={{ ...styles.container, height: videoLayout.height }}>
             <TouchableRipple onPress={toggleShowControls} borderless style={styles.ripple}>
@@ -74,7 +76,7 @@ const Player: React.FC<PlayerProps> = ({ source, onClose, ...props }) => {
                                 setIsPlaying(false);
                             }
                         }}
-                        {...props}
+                        {...rest}
                     />
                     {(showControls || videoEnd) && (
                         <View style={{ ...styles.controlsOverlay, height: videoLayout.height }}>
