@@ -12,8 +12,10 @@ const Text = ({ children, style, ...props }: TextProps<string>): ReactElement =>
 
     if (style) customStyle = [customStyle, style];
 
+    const { key, ...rest } = props;
+
     return (
-        <TextPaper {...props} style={customStyle}>
+        <TextPaper key={key} {...rest} style={customStyle}>
             {children}
         </TextPaper>
     );
