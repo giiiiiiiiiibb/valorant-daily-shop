@@ -10,7 +10,7 @@ import SvgSetting from "@/components/icon/setting";
 import useAuthContext from "@/contexts/hook/use-auth-context";
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // routes
-import Header from "@/routes/navigation/header";
+import TabHeader from "@/routes/navigation/tab-header";
 import StoreStackScreen from "@/routes/store-stack-screen";
 // screens
 import ProfileScreen from "@/screens/profile/profile-screen";
@@ -28,7 +28,7 @@ const TabBar = () => {
 
   return (
     <>
-      <Header activeTab={activeTab} />
+      <TabHeader activeTab={activeTab} />
       <BottomNavigation.Navigator
         sceneAnimationEnabled
         initialRouteName="Shops"
