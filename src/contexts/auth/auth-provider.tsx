@@ -219,6 +219,28 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
         await user.removeUser(username);
     };
 
+    const logoutAll = async () => {
+      try {
+        await AsyncStorage.removeItem("current_user");
+        dispatch({ type: EAuthContextType.LOGOUT, payload: {} });
+    
+        Toast.show({
+          type: "success",
+          text1: "Logged out",
+          text2: "You have been signed out from all accounts.",
+          position: "bottom",
+        });
+      } catch (error) {
+        console.error("[LogoutAll] Error:", error);
+        Toast.show({
+          type: "error",
+          text1: "Logout Failed",
+          text2: "An error occurred during logout.",
+          position: "bottom",
+        });
+      }
+    };
+
     useEffect(() => {
         (async () => initialize())();
     }, []);
@@ -229,9 +251,9 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
             isSignout: state.isSignout,
             isInitialized: state.isInitialized,
             currentUser: state.currentUser,
-            //
             login,
             logoutUser,
+            logoutAll,
             dispatch,
         }),
         [
