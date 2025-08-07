@@ -9,7 +9,7 @@ import authLogic from "@/auth/auth-logic";
 import { EAuthContextType, IAuthAction, IAuthContext } from "@/types/context/auth";
 // utils
 import user from "@/utils/users";
-//
+// contexts
 import { AuthContext, initialAuthState } from "./auth-context";
 
 const reducer = (state: IAuthContext, action: IAuthAction<EAuthContextType>) => {
@@ -41,6 +41,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     const initialize = useCallback(async () => {
         try {
             const currentUser = await AsyncStorage.getItem("current_user");
+
             if (currentUser) {
                 await login();
             } else {
@@ -63,6 +64,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
             await AsyncStorage.setItem('ssid_cookie', ssidCookie);
 
             const reauthUrl = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid';
+
             const response = await fetch(reauthUrl, {
                 headers: {
                     'Cookie': `ssid=${ssidCookie}`,
@@ -83,7 +85,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
 
             return { accessToken, idToken };
         } catch (error: any) {
-            console.error('Reauth error:', error.message);
+            console.error('[Reauth] Error:', error.message);
             Toast.show({
                 type: 'error',
                 text1: 'Reauth Failed',
@@ -110,9 +112,11 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
             await valorantProvider.getPlayerRankAndRR();
 
             const currentUser = await AsyncStorage.getItem("current_user");
+
+            // Important: Always set currentUser explicitly
             dispatch({
                 type: EAuthContextType.INITIAL,
-                payload: { currentUser },
+                payload: { currentUser: currentUser ?? null },
             });
 
             Toast.show({
@@ -122,45 +126,35 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
                 position: 'bottom',
             });
         } catch (error: any) {
-            console.error('Login error:', error.message);
+            console.error('[Login] Error:', error.message);
 
-            if (error.response) {
+            if (error?.response) {
                 const status = error.response.status;
                 const message = error.response.data?.message || 'An error occurred during login';
+                const toastContent = {
+                    type: 'error',
+                    position: 'bottom' as const,
+                    text1: 'Login Failed',
+                    text2: message,
+                };
+
                 switch (status) {
                     case 401:
-                        Toast.show({
-                            type: 'error',
-                            text1: 'Authentication Failed',
-                            text2: 'Invalid credentials.',
-                            position: 'bottom',
-                        });
+                        toastContent.text1 = 'Authentication Failed';
+                        toastContent.text2 = 'Invalid credentials.';
                         break;
                     case 403:
-                        Toast.show({
-                            type: 'error',
-                            text1: 'Access Denied',
-                            text2: 'You do not have permission to access this account.',
-                            position: 'bottom',
-                        });
+                        toastContent.text1 = 'Access Denied';
+                        toastContent.text2 = 'You do not have permission to access this account.';
                         break;
                     case 429:
-                        Toast.show({
-                            type: 'error',
-                            text1: 'Too Many Requests',
-                            text2: 'Try again later.',
-                            position: 'bottom',
-                        });
+                        toastContent.text1 = 'Too Many Requests';
+                        toastContent.text2 = 'Try again later.';
                         break;
-                    default:
-                        Toast.show({
-                            type: 'error',
-                            text1: 'Login Failed',
-                            text2: message,
-                            position: 'bottom',
-                        });
                 }
-            } else if (error.request) {
+
+                Toast.show(toastContent);
+            } else if (error?.request) {
                 Toast.show({
                     type: 'error',
                     text1: 'Network Error',
@@ -171,7 +165,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
                 Toast.show({
                     type: 'error',
                     text1: 'Login Error',
-                    text2: error.message || 'Unexpected error occurred',
+                    text2: error?.message || 'Unexpected error occurred',
                     position: 'bottom',
                 });
             }
@@ -180,6 +174,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
                 type: EAuthContextType.INITIAL,
                 payload: { currentUser: null },
             });
+
             throw error;
         }
     };
@@ -193,18 +188,15 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
         initialize();
     }, []);
 
-    const memoizedValue = useMemo(
-        () => ({
-            isLoading: state.isLoading,
-            isSignout: state.isSignout,
-            isInitialized: state.isInitialized,
-            currentUser: state.currentUser,
-            login,
-            logoutUser,
-            dispatch,
-        }),
-        [state]
-    );
+    const memoizedValue = useMemo(() => ({
+        isLoading: state.isLoading,
+        isSignout: state.isSignout,
+        isInitialized: state.isInitialized,
+        currentUser: state.currentUser,
+        login,
+        logoutUser,
+        dispatch,
+    }), [state]);
 
     return (
         <AuthContext.Provider value={memoizedValue}>
