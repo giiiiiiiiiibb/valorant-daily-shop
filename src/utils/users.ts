@@ -68,7 +68,7 @@ const user = {
 
     async clearAllUsers(): Promise<void> {
       await secureStore.removeItem("users");
-    }
+    },
 
     async setUserInfo(key: keyof IUserData, value: string | boolean): Promise<void> {
         const currentUser = await AsyncStorage.getItem("current_user");
