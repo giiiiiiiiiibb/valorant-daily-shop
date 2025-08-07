@@ -14,19 +14,12 @@ export type Response<T> = {
 
 const BASE_URL = "https://valorant-api.com/v1/";
 
-/**
- * Finds an item with a specific level ID inside its 'levels' array.
- */
-const findItemByLevelId = <T extends { levels?: { uuid: string }[] }>(
-    items: T[],
-    levelId: string
-): T | undefined => {
-    return items.find(item => item.levels?.some(level => level.uuid === levelId));
+const findItemByLevelId = <T>(items: T[], levelId: string): T | undefined => {
+    return items.find(item =>
+        (item as any).levels.some((level: { uuid: string }) => level.uuid === levelId),
+    );
 };
 
-/**
- * Centralized API definition using RTK Query
- */
 export const rtkValorantApi = createApi({
     reducerPath: "valorantApi",
     baseQuery: fetchBaseQuery({
@@ -37,71 +30,55 @@ export const rtkValorantApi = createApi({
         },
     }),
     endpoints: (builder) => ({
-        // NOTE: Deprecated in favor of community bundle list + fuzzy matching
         getBundleById: builder.query<Response<BundleInfo>, string>({
             query: (id) => `/bundles/${id}`,
         }),
-
-        getBundles: builder.query<Response<BundleInfo[]>, void>({
-            query: () => `/bundles`,
-        }),
-
         getWeaponByLevelId: builder.query<Response<WeaponSkin>, string>({
             query: () => `/weapons/skins`,
             // @ts-ignore
-            transformResponse: (response: Response<WeaponSkins>, _meta, levelId) => {
-                const foundSkin = findItemByLevelId(response.data, levelId);
+            transformResponse: (response: Response<WeaponSkins>, _meta, arg) => {
+                const foundSkin = findItemByLevelId(response.data, arg);
                 return foundSkin ? { status: 200, data: foundSkin } : { status: 404, data: undefined };
             },
             keepUnusedDataFor: 3600,
         }),
-
         getWeaponById: builder.query<Response<Weapon>, string>({
             query: (id) => `/weapons/${id}`,
         }),
-
         getThemeById: builder.query<Response<Theme>, string>({
             query: (id) => `/themes/${id}`,
         }),
-
-        getPlayerCardById: builder.query<Response<PlayerCard>, string>({
+        getPlayerCardId: builder.query<Response<PlayerCard>, string>({
             query: (id) => `/playercards/${id}`,
         }),
-
         getSprayById: builder.query<Response<Spray>, string>({
             query: (id) => `/sprays/${id}`,
         }),
-
         getTitleById: builder.query<Response<PlayerTitle>, string>({
             query: (id) => `/playertitles/${id}`,
         }),
-
-        getGunBuddyByLevelId: builder.query<Response<Buddy>, string>({
+        getGunBuddyById: builder.query<Response<Buddy>, string>({
             query: () => "/buddies",
             // @ts-ignore
-            transformResponse: (response: Response<Buddies>, _meta, levelId) => {
-                const foundBuddy = findItemByLevelId(response.data, levelId);
+            transformResponse: (response: Response<Buddies>, _meta, arg) => {
+                const foundBuddy = findItemByLevelId(response.data, arg);
                 return foundBuddy ? { status: 200, data: foundBuddy } : { status: 404, data: undefined };
             },
-            keepUnusedDataFor: 3600,
         }),
-
-        getAgents: builder.query<Response<Agents>, void>({
+        getAgents: builder.query<Response<Agents>, undefined>({
             query: () => "/agents?isPlayableCharacter=true",
         }),
     }),
 });
 
-// Export hooks
 export const {
     useGetAgentsQuery,
-    useGetBundlesQuery,
     useGetThemeByIdQuery,
     useGetTitleByIdQuery,
     useGetSprayByIdQuery,
-    useGetBundleByIdQuery, // deprecated – consider removing
+    useGetBundleByIdQuery,
     useGetWeaponByIdQuery,
-    useGetPlayerCardByIdQuery,
-    useGetGunBuddyByLevelIdQuery,
+    useGetPlayerCardIdQuery,
+    useGetGunBuddyByIdQuery,
     useGetWeaponByLevelIdQuery,
 } = rtkValorantApi;
