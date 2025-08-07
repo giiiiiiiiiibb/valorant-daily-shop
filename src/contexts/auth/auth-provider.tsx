@@ -218,10 +218,18 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
 
         await user.removeUser(username);
     };
-
+    
     const logoutAll = async () => {
       try {
-        await AsyncStorage.removeItem("current_user");
+        await AsyncStorage.multiRemove([
+          "access_token",
+          "id_token",
+          "ssid_cookie",
+          "current_user",
+        ]);
+    
+        await user.clearAllUsers();
+    
         dispatch({ type: EAuthContextType.LOGOUT, payload: {} });
     
         Toast.show({
