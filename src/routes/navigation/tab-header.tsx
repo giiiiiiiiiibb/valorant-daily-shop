@@ -53,7 +53,7 @@ const TabHeader = ({ activeTab }: Props) => {
     return (
         <View style={[styles.header, { backgroundColor: colors.background }]}>
             <Text variant="displayMedium" style={styles.title}>
-                {activeTab.toUpperCase()}
+                {typeof activeTab === "string" ? activeTab.toUpperCase() : ""}
             </Text>
             <View style={styles.rightComponentWrapper}>{renderRightComponent()}</View>
         </View>
