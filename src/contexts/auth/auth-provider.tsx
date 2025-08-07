@@ -9,7 +9,7 @@ import authLogic from "@/auth/auth-logic";
 import { EAuthContextType, IAuthAction, IAuthContext } from "@/types/context/auth";
 // utils
 import user from "@/utils/users";
-//
+// contexts
 import { AuthContext, initialAuthState } from "./auth-context";
 
 const reducer = (state: IAuthContext, action: IAuthAction<EAuthContextType>) => {
@@ -34,8 +34,6 @@ const reducer = (state: IAuthContext, action: IAuthAction<EAuthContextType>) => 
             return state;
     }
 };
-
-// ----------------------------------------------------------------------
 
 type AuthProviderProps = {
     children: ReactNode;
@@ -238,6 +236,8 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
           text2: "You have been signed out from all accounts.",
           position: "bottom",
         });
+
+        navigation.navigate("Accounts");
       } catch (error) {
         console.error("[LogoutAll] Error:", error);
         Toast.show({
