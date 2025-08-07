@@ -1,145 +1,216 @@
 import Toast from "react-native-toast-message";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
-// api & auth logic
+// api
 import valorantProvider from "@/api/valorant-provider";
+// auth
 import authLogic from "@/auth/auth-logic";
 // types
 import { EAuthContextType, IAuthAction, IAuthContext } from "@/types/context/auth";
 // utils
 import user from "@/utils/users";
+//
 import { AuthContext, initialAuthState } from "./auth-context";
 
 const reducer = (state: IAuthContext, action: IAuthAction<EAuthContextType>) => {
-  switch (action.type) {
-    case EAuthContextType.INITIAL:
-      return { ...initialAuthState, ...action.payload, isInitialized: true };
-    case EAuthContextType.LOGOUT:
-      return { ...initialAuthState, isInitialized: true, isSignout: true };
-    default:
-      return state;
-  }
+    switch (action.type) {
+        case EAuthContextType.INITIAL:
+            return {
+                ...state,
+                ...action.payload,
+                isInitialized: true,
+            };
+        case EAuthContextType.LOGOUT:
+            return {
+                ...initialAuthState,
+                isSignout: true,
+                isInitialized: true,
+            };
+        default:
+            return state;
+    }
 };
 
-type AuthProviderProps = { children: ReactNode };
+type AuthProviderProps = {
+    children: ReactNode;
+};
 
 const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [state, dispatch] = useReducer(reducer, initialAuthState);
+    const [state, dispatch] = useReducer(reducer, initialAuthState);
 
-  const initialize = useCallback(async () => {
-    dispatch({ type: EAuthContextType.INITIAL, payload: { currentUser: null } });
-  }, []);
+    const initialize = useCallback(async () => {
+        try {
+            const currentUser = await AsyncStorage.getItem("current_user");
+            if (currentUser) {
+                await login();
+            } else {
+                dispatch({
+                    type: EAuthContextType.INITIAL,
+                    payload: { currentUser: null },
+                });
+            }
+        } catch (e) {
+            console.warn("Auto-login failed:", e);
+            dispatch({
+                type: EAuthContextType.INITIAL,
+                payload: { currentUser: null },
+            });
+        }
+    }, []);
 
-  const reauthWithCookie = async (ssid: string) => {
-    try {
-      await AsyncStorage.setItem("ssid_cookie", ssid);
+    const reauthWithCookie = async (ssidCookie: string) => {
+        try {
+            await AsyncStorage.setItem('ssid_cookie', ssidCookie);
 
-      const params = new URLSearchParams({
-        redirect_uri: "https://playvalorant.com/opt_in",
-        client_id: "play-valorant-web-prod",
-        response_type: "token id_token",
-        nonce: "1",
-        scope: "account openid",
-      });
-      const reauthUrl = `https://auth.riotgames.com/authorize?${params}`;
+            const reauthUrl = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid';
+            const response = await fetch(reauthUrl, {
+                headers: {
+                    'Cookie': `ssid=${ssidCookie}`,
+                },
+            });
 
-      const response = await fetch(reauthUrl, {
-        credentials: "include",
-        headers: { Cookie: `ssid=${ssid}` },
-      });
+            if (!response.ok) throw new Error('Reauth failed');
 
-      if (!response.ok) throw new Error(`Reauth failed: ${response.status}`);
+            const redirectUrl = response.url;
+            const urlParams = new URLSearchParams(redirectUrl.split('#')[1]);
+            const accessToken = urlParams.get('access_token');
+            const idToken = urlParams.get('id_token');
 
-      const fragment = response.url.split("#")[1] || "";
-      const urlParams = new URLSearchParams(fragment);
-      const accessToken = urlParams.get("access_token");
-      const idToken = urlParams.get("id_token");
+            if (!accessToken || !idToken) throw new Error('Failed to extract tokens');
 
-      if (!accessToken || !idToken) throw new Error("Token extraction failed");
+            await AsyncStorage.setItem('access_token', accessToken);
+            await AsyncStorage.setItem('id_token', idToken);
 
-      await AsyncStorage.multiSet([
-        ["access_token", accessToken],
-        ["id_token", idToken],
-      ]);
+            return { accessToken, idToken };
+        } catch (error: any) {
+            console.error('Reauth error:', error.message);
+            Toast.show({
+                type: 'error',
+                text1: 'Reauth Failed',
+                text2: 'Failed to refresh authentication. Please login again.',
+                position: 'bottom',
+            });
+            throw error;
+        }
+    };
 
-      return { accessToken, idToken };
-    } catch {
-      Toast.show({
-        type: "error",
-        text1: "Reauthentication Failed",
-        text2: "Please sign in again.",
-        position: "bottom",
-      });
-      throw new Error("Reauth failed");
-    }
-  };
+    const login = async (ssidCookie?: string) => {
+        try {
+            if (ssidCookie) {
+                await reauthWithCookie(ssidCookie);
+            }
 
-  const login = async (ssidCookie?: string) => {
-    try {
-      if (ssidCookie) await reauthWithCookie(ssidCookie);
+            await authLogic.getEntitlement();
+            await valorantProvider.getUserInfo();
+            await valorantProvider.getRiotGeo();
+            await valorantProvider.getRiotVersion();
+            await valorantProvider.getUserBalance();
+            await valorantProvider.getAccountXP();
+            await valorantProvider.getPlayerLoadout();
+            await valorantProvider.getPlayerRankAndRR();
 
-      await authLogic.getEntitlement();
-      await valorantProvider.getUserInfo();
-      await valorantProvider.getRiotGeo();
-      await valorantProvider.getRiotVersion();
-      await valorantProvider.getUserBalance();
-      await valorantProvider.getAccountXP();
-      await valorantProvider.getPlayerLoadout();
-      await valorantProvider.getPlayerRankAndRR();
+            const currentUser = await AsyncStorage.getItem("current_user");
+            dispatch({
+                type: EAuthContextType.INITIAL,
+                payload: { currentUser },
+            });
 
-      const currentUser = await AsyncStorage.getItem("current_user");
+            Toast.show({
+                type: 'success',
+                text1: 'Login Successful',
+                text2: 'Welcome back!',
+                position: 'bottom',
+            });
+        } catch (error: any) {
+            console.error('Login error:', error.message);
 
-      dispatch({ type: EAuthContextType.INITIAL, payload: { currentUser } });
+            if (error.response) {
+                const status = error.response.status;
+                const message = error.response.data?.message || 'An error occurred during login';
+                switch (status) {
+                    case 401:
+                        Toast.show({
+                            type: 'error',
+                            text1: 'Authentication Failed',
+                            text2: 'Invalid credentials.',
+                            position: 'bottom',
+                        });
+                        break;
+                    case 403:
+                        Toast.show({
+                            type: 'error',
+                            text1: 'Access Denied',
+                            text2: 'You do not have permission to access this account.',
+                            position: 'bottom',
+                        });
+                        break;
+                    case 429:
+                        Toast.show({
+                            type: 'error',
+                            text1: 'Too Many Requests',
+                            text2: 'Try again later.',
+                            position: 'bottom',
+                        });
+                        break;
+                    default:
+                        Toast.show({
+                            type: 'error',
+                            text1: 'Login Failed',
+                            text2: message,
+                            position: 'bottom',
+                        });
+                }
+            } else if (error.request) {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Network Error',
+                    text2: 'Check your internet connection.',
+                    position: 'bottom',
+                });
+            } else {
+                Toast.show({
+                    type: 'error',
+                    text1: 'Login Error',
+                    text2: error.message || 'Unexpected error occurred',
+                    position: 'bottom',
+                });
+            }
 
-      Toast.show({
-        type: "success",
-        text1: "Login Successful",
-        text2: `Welcome back, ${currentUser ?? "player"}!`,
-        position: "bottom",
-      });
-    } catch (err: any) {
-      console.warn("Login issue:", err);
+            dispatch({
+                type: EAuthContextType.INITIAL,
+                payload: { currentUser: null },
+            });
+            throw error;
+        }
+    };
 
-      if (err.response?.status === 401) {
-        Toast.show({
-          type: "error",
-          text1: "Unauthorized",
-          text2: "Session expired or invalid. Please log in again.",
-          position: "bottom",
-        });
-      } else {
-        Toast.show({
-          type: "error",
-          text1: "Login Error",
-          text2: err.message ?? "An unexpected error occurred.",
-          position: "bottom",
-        });
-      }
+    const logoutUser = async (username: string): Promise<void> => {
+        if (!username) return;
+        await user.removeUser(username);
+    };
 
-      dispatch({ type: EAuthContextType.LOGOUT, payload: {} });
-      throw err;
-    }
-  };
+    useEffect(() => {
+        initialize();
+    }, []);
 
-  const logoutUser = async (username?: string) => {
-    if (username) user.removeUser(username);
-    dispatch({ type: EAuthContextType.LOGOUT, payload: {} });
-  };
+    const memoizedValue = useMemo(
+        () => ({
+            isLoading: state.isLoading,
+            isSignout: state.isSignout,
+            isInitialized: state.isInitialized,
+            currentUser: state.currentUser,
+            login,
+            logoutUser,
+            dispatch,
+        }),
+        [state]
+    );
 
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
-
-  const contextValue = useMemo(
-    () => ({
-      ...state,
-      login,
-      logoutUser,
-    }),
-    [state]
-  );
-
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={memoizedValue}>
+            {children}
+        </AuthContext.Provider>
+    );
 };
 
 export default AuthProvider;
