@@ -4,6 +4,7 @@ export type IAuthContext = {
     // fn
     login: () => Promise<void>;
     logoutUser: (user: string) => Promise<void>;
+    logoutAll: () => Promise<void>;
     dispatch: React.Dispatch<IAuthAction<EAuthContextType>>;
     // state
     isLoading: boolean;
