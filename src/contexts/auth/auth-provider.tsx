@@ -236,8 +236,6 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
           text2: "You have been signed out from all accounts.",
           position: "bottom",
         });
-
-        navigation.navigate("Accounts");
       } catch (error) {
         console.error("[LogoutAll] Error:", error);
         Toast.show({
