@@ -1,279 +1,155 @@
-import Toast from "react-native-toast-message";
+import React, { ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ReactNode, useCallback, useEffect, useMemo, useReducer } from "react";
+import Toast from "react-native-toast-message";
 // api
 import valorantProvider from "@/api/valorant-provider";
 // auth
 import authLogic from "@/auth/auth-logic";
 // types
-import { EAuthContextType, IAuthAction, IAuthContext } from "@/types/context/auth";
+import { EAuthContextType, IAuthAction, IAuthContext, SelectAccountResult } from "@/types/context/auth";
 // utils
 import user from "@/utils/users";
+import secureStore from "@/utils/secure-store";
 // contexts
 import { AuthContext, initialAuthState } from "./auth-context";
+import { resetStore } from "@/controllers/store";
 
-const reducer = (state: IAuthContext, action: IAuthAction<EAuthContextType>) => {
-    let ac;
+type State = {
+  state: "initializing" | "unauthenticated" | "authenticated";
+  currentUser: string | null;
+};
 
-    switch (action.type) {
-        case EAuthContextType.INITIAL:
-            ac = action as IAuthAction<EAuthContextType.INITIAL>;
+const reducer = (state: State, action: IAuthAction): State => {
+  switch (action.type) {
+    case EAuthContextType.INIT:
+      return { ...state, state: "initializing" };
+    case EAuthContextType.INIT_DONE_UNAUTH:
+      return { ...state, state: "unauthenticated", currentUser: null };
+    case EAuthContextType.LOGIN_SUCCESS:
+      return { ...state, state: "authenticated", currentUser: action.username ?? null };
+    case EAuthContextType.LOGOUT_ALL:
+      return { ...state, state: "unauthenticated", currentUser: null };
+    default:
+      return state;
+  }
+};
 
-            return {
-                ...state,
-                ...ac.payload,
-                isInitialized: true,
-            };
-        case EAuthContextType.LOGOUT:
-            return {
-                ...initialAuthState,
-                isSignout: true,
-                isInitialized: true,
-            };
-        default:
-            return state;
+type Props = { children: ReactNode };
+
+const AuthProvider = ({ children }: Props) => {
+  const [state, dispatch] = useReducer(reducer, { state: "initializing", currentUser: null });
+
+  const initialize = useCallback(async () => {
+    dispatch({ type: EAuthContextType.INIT });
+    dispatch({ type: EAuthContextType.INIT_DONE_UNAUTH });
+  }, []);
+
+  const isLikelyJWT = (t?: string | null) => !!t && t.split(".").length >= 3;
+
+  const tryReuseTokens = useCallback(async (username: string): Promise<boolean> => {
+    const access = await user.getUserInfoFor(username, "access_token");
+    const id = await user.getUserInfoFor(username, "id_token");
+    if (!isLikelyJWT(String(access)) || !isLikelyJWT(String(id))) return false;
+
+    await secureStore.setItem("access_token", String(access));
+    await secureStore.setItem("id_token", String(id));
+
+    // Minimal bootstrap to ensure tokens work
+    await authLogic.getEntitlement();
+    await valorantProvider.getUserInfo();
+    await valorantProvider.getRiotGeo();
+    await valorantProvider.getRiotVersion();
+    await valorantProvider.getUserBalance();
+    await valorantProvider.getAccountXP();
+    await valorantProvider.getPlayerLoadout();
+    await valorantProvider.getPlayerRankAndRR();
+
+    dispatch({ type: EAuthContextType.LOGIN_SUCCESS, username });
+    Toast.show({ type: "success", text1: "Login Successful", text2: "Welcome back!", position: "bottom" });
+    return true;
+  }, []);
+
+  const selectAccount = useCallback(async (username: string): Promise<SelectAccountResult> => {
+    try {
+      await AsyncStorage.setItem("current_user", username);
+      const ok = await tryReuseTokens(username);
+      return { needsInteractive: !ok };
+    } catch {
+      return { needsInteractive: true };
     }
-};
+  }, [tryReuseTokens]);
 
-type AuthProviderProps = {
-    children: ReactNode;
-};
+  const loginInteractive = useCallback(async () => {
+    try {
+      await authLogic.getEntitlement();
+      await valorantProvider.getUserInfo();
+      await valorantProvider.getRiotGeo();
+      await valorantProvider.getRiotVersion();
+      await valorantProvider.getUserBalance();
+      await valorantProvider.getAccountXP();
+      await valorantProvider.getPlayerLoadout();
+      await valorantProvider.getPlayerRankAndRR();
 
-const AuthProvider = ({ children }: AuthProviderProps) => {
-    const [state, dispatch] = useReducer(reducer, initialAuthState);
+      const username = await AsyncStorage.getItem("current_user");
+      dispatch({ type: EAuthContextType.LOGIN_SUCCESS, username: username ?? null });
 
-    const initialize = useCallback(async () => {
-        dispatch({
-            type: EAuthContextType.INITIAL,
-            payload: {
-                currentUser: null,
-            },
-        });
-    }, []);
+      Toast.show({ type: "success", text1: "Login Successful", text2: "Welcome back!", position: "bottom" });
+    } catch {
+      Toast.show({ type: "error", text1: "Login Failed", text2: "Please try again.", position: "bottom" });
+      throw new Error("interactive login failed");
+    }
+  }, []);
 
-    const reauthWithCookie = async (ssidCookie: string) => {
-        try {
-            // Store the SSID cookie
-            await AsyncStorage.setItem('ssid_cookie', ssidCookie);
+  const logoutUser = useCallback(async (username: string) => {
+    try {
+      await user.removeUser(username);
 
-            // Attempt to reauth using the cookie
-            const reauthUrl = 'https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid';
-            
-            const response = await fetch(reauthUrl, {
-                headers: {
-                    'Cookie': `ssid=${ssidCookie}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Reauth failed');
-            }
-
-            // Extract tokens from the redirect URL
-            const redirectUrl = response.url;
-            const urlParams = new URLSearchParams(redirectUrl.split('#')[1]);
-            const accessToken = urlParams.get('access_token');
-            const idToken = urlParams.get('id_token');
-
-            if (!accessToken || !idToken) {
-                throw new Error('Failed to extract tokens from reauth response');
-            }
-
-            // Store the tokens
-            await AsyncStorage.setItem('access_token', accessToken);
-            await AsyncStorage.setItem('id_token', idToken);
-
-            return { accessToken, idToken };
-        } catch (error: any) {
-            console.error('Reauth error:', error);
-            Toast.show({
-                type: 'error',
-                text1: 'Reauth Failed',
-                text2: 'Failed to refresh authentication. Please login again.',
-                position: 'bottom',
-            });
-            throw error;
-        }
-    };
-
-    const login = async (ssidCookie?: string) => {
-        try {
-            // If SSID cookie is provided, try to reauth first
-            if (ssidCookie) {
-                await reauthWithCookie(ssidCookie);
-            }
-
-            // Get entitlement token
-            await authLogic.getEntitlement();
-
-            // Get user info
-            await valorantProvider.getUserInfo();
-
-            // Get riot geo: PP
-            await valorantProvider.getRiotGeo();
-
-            // Get riot version
-            await valorantProvider.getRiotVersion();
-
-            // Get user balance
-            await valorantProvider.getUserBalance();
-
-            // Account XP
-            await valorantProvider.getAccountXP();
-
-            // Get player loadout
-            await valorantProvider.getPlayerLoadout();
-
-            // Get player rank and rr
-            await valorantProvider.getPlayerRankAndRR();
-
-            // Set current user to auth provider
-            const currentUser = await AsyncStorage.getItem("current_user");
-
-            dispatch({
-                type: EAuthContextType.INITIAL,
-                payload: {
-                    currentUser: currentUser,
-                },
-            });
-
-            Toast.show({
-                type: 'success',
-                text1: 'Login Successful',
-                text2: 'Welcome back!',
-                position: 'bottom',
-            });
-
-            return Promise.resolve();
-        } catch (error: any) {
-            console.error('Login error:', error);
-            
-            // Handle specific error types
-            if (error.response) {
-                // API error with response
-                const status = error.response.status;
-                const message = error.response.data?.message || 'An error occurred during login';
-                
-                switch (status) {
-                    case 401:
-                        Toast.show({
-                            type: 'error',
-                            text1: 'Authentication Failed',
-                            text2: 'Invalid credentials. Please try again.',
-                            position: 'bottom',
-                        });
-                        break;
-                    case 403:
-                        Toast.show({
-                            type: 'error',
-                            text1: 'Access Denied',
-                            text2: 'You do not have permission to access this account.',
-                            position: 'bottom',
-                        });
-                        break;
-                    case 429:
-                        Toast.show({
-                            type: 'error',
-                            text1: 'Too Many Requests',
-                            text2: 'Please wait a moment before trying again.',
-                            position: 'bottom',
-                        });
-                        break;
-                    default:
-                        Toast.show({
-                            type: 'error',
-                            text1: 'Login Failed',
-                            text2: message,
-                            position: 'bottom',
-                        });
-                }
-            } else if (error.request) {
-                // Network error
-                Toast.show({
-                    type: 'error',
-                    text1: 'Network Error',
-                    text2: 'Please check your internet connection and try again.',
-                    position: 'bottom',
-                });
-            } else {
-                // Other errors
-                Toast.show({
-                    type: 'error',
-                    text1: 'Login Error',
-                    text2: error.message || 'An unexpected error occurred',
-                    position: 'bottom',
-                });
-            }
-            
-            throw error;
-        }
-    };
-
-    const logoutUser = async (username: string): Promise<void> => {
-        if (!username) {
-            return;
-        }
-
-        await user.removeUser(username);
-    };
-    
-    const logoutAll = async () => {
-      try {
-        await AsyncStorage.multiRemove([
-          "access_token",
-          "id_token",
-          "ssid_cookie",
-          "current_user",
-        ]);
-    
-        await user.clearAllUsers();
-    
-        dispatch({ type: EAuthContextType.LOGOUT, payload: {} });
-    
-        Toast.show({
-          type: "success",
-          text1: "Logged out",
-          text2: "You have been signed out from all accounts.",
-          position: "bottom",
-        });
-      } catch (error) {
-        console.error("[LogoutAll] Error:", error);
-        Toast.show({
-          type: "error",
-          text1: "Logout Failed",
-          text2: "An error occurred during logout.",
-          position: "bottom",
-        });
+      // If this was the current user, also clear volatile tokens to force reauth
+      const current = await AsyncStorage.getItem("current_user");
+      if (current && current.toLowerCase() === username.toLowerCase()) {
+        await AsyncStorage.removeItem("current_user");
+        await secureStore.removeItem("access_token");
+        await secureStore.removeItem("id_token");
+        resetStore();
+        dispatch({ type: EAuthContextType.INIT_DONE_UNAUTH });
       }
-    };
 
-    useEffect(() => {
-        (async () => initialize())();
-    }, []);
+      Toast.show({ type: "success", text1: "Removed", text2: "Account removed from this device.", position: "bottom" });
+    } catch {
+      Toast.show({ type: "error", text1: "Failed", text2: "Could not remove account.", position: "bottom" });
+    }
+  }, []);
 
-    const memoizedValue = useMemo(
-        () => ({
-            isLoading: state.isLoading,
-            isSignout: state.isSignout,
-            isInitialized: state.isInitialized,
-            currentUser: state.currentUser,
-            login,
-            logoutUser,
-            logoutAll,
-            dispatch,
-        }),
-        [
-            state,
-            state.isLoading,
-            state.isSignout,
-        ],
-    );
+  const logoutAll = useCallback(async () => {
+    try {
+      await AsyncStorage.multiRemove(["access_token", "id_token", "ssid_cookie", "current_user"]);
+      await user.clearAllUsers();
+      resetStore();
+      dispatch({ type: EAuthContextType.LOGOUT_ALL });
+      Toast.show({ type: "success", text1: "Logged out", text2: "Signed out from all accounts.", position: "bottom" });
+    } catch {
+      Toast.show({ type: "error", text1: "Logout Failed", text2: "An error occurred.", position: "bottom" });
+    }
+  }, []);
 
-    return (
-        <AuthContext.Provider value={memoizedValue}>
-            {children}
-        </AuthContext.Provider>
-    );
+  useEffect(() => {
+    void initialize();
+  }, [initialize]);
+
+  const value: IAuthContext = useMemo(
+    () => ({
+      state: state.state,
+      currentUser: state.currentUser,
+      initialize,
+      selectAccount,
+      loginInteractive,
+      logoutUser,
+      logoutAll,
+    }),
+    [state, initialize, selectAccount, loginInteractive, logoutUser, logoutAll]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export default AuthProvider;
