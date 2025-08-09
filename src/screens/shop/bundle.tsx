@@ -17,121 +17,126 @@ import Pagination from "@/sections/shop/bundle/slider-pagination";
 import { BundlesData, ItemOffer } from "@/types/api/shop/bundle";
 
 const BundleView = () => {
-    const { colors } = useThemeContext();
-    const { bundles: featuredBundle } = useBundleContext();
+  const { palette } = useThemeContext();
+  const { bundles: featuredBundle } = useBundleContext();
 
-    const [bundleIndex, setBundleIndex] = useState(0);
-    const [bundlesInfos, setBundlesInfos] = useState<BundlesData>([]);
-    const [bundleLoading, setBundleLoading] = useState(true);
+  const [bundleIndex, setBundleIndex] = useState(0);
+  const [bundlesInfos, setBundlesInfos] = useState<BundlesData>([]);
+  const [bundleLoading, setBundleLoading] = useState(true);
 
-    const scrollX = useRef(new Animated.Value(0)).current;
+  const scrollX = useRef(new Animated.Value(0)).current;
 
-    const handleOnScroll = Animated.event(
-        [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-        { useNativeDriver: false },
-    );
+  const handleOnScroll = Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+    useNativeDriver: false,
+  });
 
-    const handleOnViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-        setBundleIndex(viewableItems[0].index ?? 0);
-    }, []);
+  const handleOnViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    setBundleIndex(viewableItems[0].index ?? 0);
+  }, []);
 
-    useEffect(() => {
-        async function getBundles() {
-            if (featuredBundle.Bundles.length === 0) return;
-            const bundlesInfos = await Promise.all(featuredBundle.Bundles.map(async (bundle) => {
-                const bundleInfo = await valorantProvider.getBundle(bundle.DataAssetID);
-                if (bundleInfo === undefined) {
-                    return null;
-                }
-                return { bundleInfo, bundle };
-            }));
+  useEffect(() => {
+    async function getBundles() {
+      if (featuredBundle.Bundles.length === 0) return;
+      const bundlesInfos = await Promise.all(
+        featuredBundle.Bundles.map(async (bundle) => {
+          const bundleInfo = await valorantProvider.getBundle(bundle.DataAssetID);
+          if (bundleInfo === undefined) {
+            return null;
+          }
+          return { bundleInfo, bundle };
+        })
+      );
 
-            setBundlesInfos(bundlesInfos.filter((bundle) => bundle !== null));
-            setBundleLoading(false);
-        }
-
-        (async () => getBundles())();
-    }, [featuredBundle.Bundles.length]);
-
-    const renderOffer = useCallback(({ item, index }: { item: ItemOffer, index: number }) => (
-        <CardFactory offer={item.Offer} key={index} />
-    ), []);
-
-    const offerList = useMemo(() => (
-        bundlesInfos[bundleIndex]?.bundle?.ItemOffers?.map((item, index) => renderOffer({ item, index }))
-    ), [bundleIndex, bundlesInfos, renderOffer]);
-
-    if (bundleLoading) {
-        return (
-            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-                <Loading />
-            </View>
-        );
+      setBundlesInfos(bundlesInfos.filter((bundle) => bundle !== null));
+      setBundleLoading(false);
     }
 
-    if (bundlesInfos.length === 0) {
-        return (
-            <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-                <Text>No bundles found</Text>
-            </View>
-        );
-    }
+    (async () => getBundles())();
+  }, [featuredBundle.Bundles.length]);
 
+  const renderOffer = useCallback(
+    ({ item, index }: { item: ItemOffer; index: number }) => <CardFactory offer={item.Offer} key={index} />,
+    []
+  );
+
+  const offerList = useMemo(
+    () => bundlesInfos[bundleIndex]?.bundle?.ItemOffers?.map((item, index) => renderOffer({ item, index })),
+    [bundleIndex, bundlesInfos, renderOffer]
+  );
+
+  if (bundleLoading) {
     return (
-        <ScrollView contentContainerStyle={[styles.scrollViewContainer, { backgroundColor: colors.background }]}>
-            <View style={styles.flatListContainer}>
-                <FlatList
-                    horizontal
-                    pagingEnabled
-                    data={bundlesInfos}
-                    overScrollMode="never"
-                    snapToAlignment="center"
-                    onScroll={handleOnScroll}
-                    showsHorizontalScrollIndicator={false}
-                    onViewableItemsChanged={handleOnViewableItemsChanged}
-                    renderItem={({ item, index }) => {
-                        const prevIndex = index === 0 ? -1 : index - 1;
-                        const nextIndex = index + 1 > bundlesInfos.length - 1 ? -1 : index + 1;
-
-                        return (
-                            <SlideItem
-                                bundle={item}
-                                bundleIndex={index}
-                                nextIndex={nextIndex}
-                                prevIndex={prevIndex}
-                                next={() => setBundleIndex(nextIndex)}
-                                prev={() => setBundleIndex(prevIndex)}
-                            />
-                        );
-                    }}
-                />
-                {bundlesInfos.length > 1 && <Pagination data={bundlesInfos} scrollX={scrollX} />}
-            </View>
-
-            <Text variant="headlineMedium" style={styles.collectionText}>COLLECTION</Text>
-
-            {offerList}
-        </ScrollView>
+      <View style={[styles.loadingContainer, { backgroundColor: palette.background }]}>
+        <Loading />
+      </View>
     );
+  }
+
+  if (bundlesInfos.length === 0) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: palette.background }]}>
+        <Text>No bundles found</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={[styles.scrollViewContainer, { backgroundColor: palette.background }]}>
+      <View style={styles.flatListContainer}>
+        <FlatList
+          horizontal
+          pagingEnabled
+          data={bundlesInfos}
+          overScrollMode="never"
+          snapToAlignment="center"
+          onScroll={handleOnScroll}
+          showsHorizontalScrollIndicator={false}
+          onViewableItemsChanged={handleOnViewableItemsChanged}
+          renderItem={({ item, index }) => {
+            const prevIndex = index === 0 ? -1 : index - 1;
+            const nextIndex = index + 1 > bundlesInfos.length - 1 ? -1 : index + 1;
+
+            return (
+              <SlideItem
+                bundle={item}
+                bundleIndex={index}
+                nextIndex={nextIndex}
+                prevIndex={prevIndex}
+                next={() => setBundleIndex(nextIndex)}
+                prev={() => setBundleIndex(prevIndex)}
+              />
+            );
+          }}
+        />
+        {bundlesInfos.length > 1 && <Pagination data={bundlesInfos} scrollX={scrollX} />}
+      </View>
+
+      <Text variant="headlineMedium" style={styles.collectionText}>
+        COLLECTION
+      </Text>
+
+      {offerList}
+    </ScrollView>
+  );
 };
 
 const styles = StyleSheet.create({
-    loadingContainer: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    scrollViewContainer: {
-        gap: 16,
-        paddingTop: 16,
-        paddingHorizontal: 16,
-    },
-    flatListContainer: {
-        position: "relative",
-    },
-    collectionText: {
-        fontFamily: "Nota",
-    },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scrollViewContainer: {
+    gap: 16,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+  },
+  flatListContainer: {
+    position: "relative",
+  },
+  collectionText: {
+    fontFamily: "Nota",
+  },
 });
 
 export default React.memo(BundleView);
