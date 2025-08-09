@@ -24,33 +24,29 @@ import useThemeContext from "@/contexts/hook/use-theme-context";
 import Router from "@/routes/index";
 
 /**
- * Keep the splash screen visible while we bootstrap.
- * We intentionally call this at module scope to avoid a flashing splash on first frame.
- * If this throws, we swallow the error to avoid noisy logs with sensitive payloads.
+ * Keep the splash visible while we bootstrap to avoid a first-frame flash.
+ * Any errors are swallowed to avoid noisy logs.
  */
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 
-/** Centralized font map (extensible) */
+/** Centralized font map */
 const APP_FONTS = {
   DrukWide: require("./assets/fonts/Druk-Wide-Bold.ttf"),
   Vandchrome: require("./assets/fonts/vanchrome-regular.otf"),
   Nota: require("./assets/fonts/nota-bold.ttf"),
 } as const;
 
-/**
- * Lightweight render error boundary to prevent full app crashes.
- * Avoids dumping raw error objects to logs/UIs to reduce risk of leaking sensitive data.
- */
+/** Lightweight error boundary to prevent full app crashes */
 class SafeErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
-  static getDerivedStateFromError(): { hasError: boolean } {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
-  componentDidCatch(): void {
-    // Deliberately do not log the raw error or stack (could contain tokens/PII).
+  componentDidCatch() {
+    // Deliberately do not log raw error or stack (could contain sensitive data).
   }
   render(): React.ReactNode {
     if (this.state.hasError) {
@@ -66,7 +62,7 @@ class SafeErrorBoundary extends React.Component<{ children: React.ReactNode }, {
   }
 }
 
-/** Combine all providers to reduce deep JSX nesting and make order explicit. */
+/** Combine all providers for clarity */
 function AppProviders({ children }: { children: React.ReactNode }): ReactElement {
   return (
     <ReduxProvider store={store}>
@@ -91,10 +87,7 @@ function AppProviders({ children }: { children: React.ReactNode }): ReactElement
   );
 }
 
-/**
- * Root that has access to ThemeContext (NavigationContainer needs themed colors).
- * This component also builds a themed font-fallback UI.
- */
+/** Root needs ThemeContext so NavigationContainer can be themed */
 function ThemedRoot({
   fontsReady,
   fontError,
@@ -104,7 +97,6 @@ function ThemedRoot({
 }): ReactElement {
   const { navTheme, palette, isReady: themeReady } = useThemeContext();
 
-  // Themed, minimal fallback if custom fonts fail to load (we still run with system fonts)
   const FontFallback = useMemo(
     () => (
       <View
@@ -129,10 +121,7 @@ function ThemedRoot({
   );
 }
 
-/**
- * Separate component that can access AuthContext (since it's rendered within providers).
- * Controls when to hide the splash screen based on readiness signals.
- */
+/** Controls hiding the splash once fonts + theme + auth are ready */
 function AppContent({
   fontsReady,
   themeReady,
@@ -140,32 +129,28 @@ function AppContent({
   fontsReady: boolean;
   themeReady: boolean;
 }): ReactElement {
-  const { isInitialized } = useAuthContext();
+  const { state: authState } = useAuthContext();
 
-  // Hide the splash screen once critical bootstrapping is complete (fonts + auth + theme).
   useEffect(() => {
-    if (fontsReady && isInitialized && themeReady) {
+    if (fontsReady && themeReady && authState !== "initializing") {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsReady, isInitialized, themeReady]);
+  }, [fontsReady, themeReady, authState]);
 
-  // Safety net: never keep users stuck behind splash if a signal fails to flip.
+  // Safety net: never keep users stuck behind splash if a signal fails to flip
   useEffect(() => {
     const timer = setTimeout(() => {
       SplashScreen.hideAsync().catch(() => {});
-    }, 5000); // 5s hard cap
+    }, 5000);
     return () => clearTimeout(timer);
   }, []);
 
-  // We render the app immediately; inner screens can manage their own skeletons.
   return <Router />;
 }
 
 export default function App(): ReactElement {
   const [fontsLoaded, fontError] = useFonts(APP_FONTS);
 
-  // We always mount providers; font readiness only affects splash & typography.
-  // If fonts fail to load, we still run the app (with default system fonts).
   return (
     <SafeErrorBoundary>
       <AppProviders>
