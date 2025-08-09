@@ -19,10 +19,11 @@ import { PlayerLoadoutGun } from "@/types/api/player-loadout";
 import { CollectionDetailScreenProps } from "@/types/router/navigation";
 // utils
 import { getContentTierIcon } from "@/utils/content-tier-icon";
+import { hexToRgba } from "@/utils/color";
+
 import CollectionLevelList from "./collection-level-list";
 import CollectionChromaList from "./collection-chroma-list";
 import CollectionWeaponSkinList from "./collection-weapon-skin-list";
-import { hexToRgba } from "@/utils/color";
 
 const WIDTH = Dimensions.get("window").width;
 
