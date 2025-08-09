@@ -28,54 +28,57 @@ import { RootStackParamList } from "@/types/router/navigation";
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const Router = (): ReactElement | null => {
-    const { isLoading: isLoadingTheme } = useGetThemeByIdQuery("");
-    const { currentUser, isInitialized } = useAuthContext();
-    const { colors } = useThemeContext();
-    const navigation = useNavigation();
+  const { isLoading: isLoadingTheme } = useGetThemeByIdQuery("");
+  const { currentUser, isInitialized } = useAuthContext();
+  const { palette, isDark } = useThemeContext();
+  const navigation = useNavigation();
 
-    if (!isInitialized || isLoadingTheme) return null;
+  if (!isInitialized || isLoadingTheme) return null;
 
-    const optionsDetailsScreen = {
-        headerShown: true,
-        header: () => (
-            <TabHeader
-                leftComponent={
-                    <IconButton
-                        size={32}
-                        icon="arrow-left"
-                        onPress={() => navigation.goBack()}
-                        iconColor="#fff"
-                    />
-                }
-            />
-        ),
-        animationTypeForReplace: "pop" as const,
-    };
+  const optionsDetailsScreen = {
+    headerShown: true,
+    header: () => (
+      <TabHeader
+        leftComponent={
+          <IconButton
+            size={32}
+            icon="arrow-left"
+            onPress={() => navigation.goBack()}
+            iconColor={palette.text}
+          />
+        }
+      />
+    ),
+    animationTypeForReplace: "pop" as const,
+  };
 
-    return (
-        <>
-            <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-            <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Accounts">
-                {currentUser == null ? (
-                    <>
-                        <Stack.Screen name="Accounts" component={Accounts} />
-                        <Stack.Screen name="Login" component={LoginWebView} />
-                        <Stack.Screen name="Logout" component={LogoutWebView} />
-                    </>
-                ) : (
-                    <>
-                        <Stack.Screen name="Home" component={TabBar} />
-                        <Stack.Screen name="Plugin" component={Plugin} options={{ animationTypeForReplace: "pop" }} />
-                        <Stack.Screen name="SkinDetails" component={SkinDetails} options={optionsDetailsScreen} />
-                        <Stack.Screen name="PlayerCardDetails" component={PlayerCardDetails} options={optionsDetailsScreen} />
-                        <Stack.Screen name="BuddyDetails" component={BuddyDetails} options={optionsDetailsScreen} />
-                        <Stack.Screen name="SprayDetails" component={SprayDetails} options={optionsDetailsScreen} />
-                        <Stack.Screen name="CollectionDetails" component={CollectionDetailsScreen} options={optionsDetailsScreen} />
-                    </>
-                )}
-            </Stack.Navigator>
-        </>
-    );
+  return (
+    <>
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        backgroundColor={palette.background}
+      />
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Accounts">
+        {currentUser == null ? (
+          <>
+            <Stack.Screen name="Accounts" component={Accounts} />
+            <Stack.Screen name="Login" component={LoginWebView} />
+            <Stack.Screen name="Logout" component={LogoutWebView} />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Home" component={TabBar} />
+            <Stack.Screen name="Plugin" component={Plugin} options={{ animationTypeForReplace: "pop" }} />
+            <Stack.Screen name="SkinDetails" component={SkinDetails} options={optionsDetailsScreen} />
+            <Stack.Screen name="PlayerCardDetails" component={PlayerCardDetails} options={optionsDetailsScreen} />
+            <Stack.Screen name="BuddyDetails" component={BuddyDetails} options={optionsDetailsScreen} />
+            <Stack.Screen name="SprayDetails" component={SprayDetails} options={optionsDetailsScreen} />
+            <Stack.Screen name="CollectionDetails" component={CollectionDetailsScreen} options={optionsDetailsScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </>
+  );
 };
 
 export default Router;
