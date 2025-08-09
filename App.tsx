@@ -22,6 +22,7 @@ import useAuthContext from "@/contexts/hook/use-auth-context";
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // routes
 import Router from "@/routes/index";
+import { navRef } from "@/routes/navigation/navigation-service";
 
 /**
  * Keep the splash visible while we bootstrap to avoid a first-frame flash.
@@ -115,7 +116,7 @@ function ThemedRoot({
   );
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} ref={navRef}>
       {fontError ? <>{FontFallback}</> : <AppContent fontsReady={fontsReady} themeReady={themeReady} />}
     </NavigationContainer>
   );
