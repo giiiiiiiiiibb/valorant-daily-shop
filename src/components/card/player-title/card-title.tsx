@@ -11,73 +11,74 @@ import CardTitleSkeleton from "@/components/card/player-title/card-title-skeleto
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // types
 import { Offer } from "@/types/api/shop";
+// utils
+import { hexToRgba } from "@/utils/color";
 
 type Props = {
-    offer: Offer;
+  offer: Offer;
 };
 
 const CardTitle = ({ offer }: Props) => {
-    const { colors } = useThemeContext();
+  const { palette } = useThemeContext();
 
-    const {
-        data: titleData,
-        error: titleError,
-        isLoading: isLoadingTitle,
-    } = useGetTitleByIdQuery(offer.Rewards[0].ItemID);
+  const {
+    data: titleData,
+    error: titleError,
+    isLoading: isLoadingTitle,
+  } = useGetTitleByIdQuery(offer.Rewards[0].ItemID);
 
-    if (isLoadingTitle) {
-        return <CardTitleSkeleton />;
-    }
+  if (isLoadingTitle) {
+    return <CardTitleSkeleton />;
+  }
 
-    if (titleError || !titleData) {
-        return <Error />;
-    }
+  if (titleError || !titleData) {
+    return <Error />;
+  }
 
-    const playerTitle = titleData.data;
+  const playerTitle = titleData.data;
 
-    return (
-        <ImageBackground
-            source={require("@/assets/player-title.png")}
-            style={[styles.container, { backgroundColor: colors.card }]}
-            blurRadius={150}
-        >
-            <View style={styles.imageContainer}>
-                <Image source={require("@/assets/player-title.png")} style={styles.image} />
-            </View>
-            <Text
-                variant="titleLarge"
-                style={styles.titleText}
-                numberOfLines={1}
-            >
-                {playerTitle.displayName.replace(" Title", "")}
-            </Text>
-            <CostPoint currencyId={Object.keys(offer.Cost)[0]} cost={offer.Cost[Object.keys(offer.Cost)[0]]} />
-        </ImageBackground>
-    );
+  return (
+    <ImageBackground
+      source={require("@/assets/player-title.png")}
+      style={[styles.container, { backgroundColor: palette.card }]}
+      blurRadius={150}
+    >
+      <View style={styles.imageContainer}>
+        <Image source={require("@/assets/player-title.png")} style={styles.image} />
+      </View>
+      <Text
+        variant="titleLarge"
+        style={[styles.titleText, { backgroundColor: hexToRgba(palette.text, 0.1) }]}
+        numberOfLines={1}
+      >
+        {playerTitle.displayName.replace(" Title", "")}
+      </Text>
+      <CostPoint currencyId={Object.keys(offer.Cost)[0]} cost={offer.Cost[Object.keys(offer.Cost)[0]]} />
+    </ImageBackground>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        gap: 16,
-        padding: 8,
-        borderRadius: 16,
-        overflow: "hidden",
-        flexDirection: "column",
-    },
-    imageContainer: {
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    image: {
-        width: 150,
-        height: 100,
-    },
-    titleText: {
-        padding: 8,
-        borderRadius: 8,
-        textAlign: "center",
-        backgroundColor: "rgba(0,0,0,0.1)",
-    },
+  container: {
+    gap: 16,
+    padding: 8,
+    borderRadius: 16,
+    overflow: "hidden",
+    flexDirection: "column",
+  },
+  imageContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  image: {
+    width: 150,
+    height: 100,
+  },
+  titleText: {
+    padding: 8,
+    borderRadius: 8,
+    textAlign: "center",
+  },
 });
 
 export default React.memo(CardTitle);
