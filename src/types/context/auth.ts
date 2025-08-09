@@ -1,31 +1,32 @@
 import React from "react";
 
-export type IAuthContext = {
-    // fn
-    login: () => Promise<void>;
-    logoutUser: (user: string) => Promise<void>;
-    logoutAll: () => Promise<void>;
-    dispatch: React.Dispatch<IAuthAction<EAuthContextType>>;
-    // state
-    isLoading: boolean;
-    isSignout: boolean;
-    currentUser: string | null;
-    isInitialized: boolean;
-}
+export type AuthState = "initializing" | "unauthenticated" | "authenticated";
 
-export enum EAuthContextType {
-    INITIAL = "INITIAL",
-    LOGOUT = "LOGOUT",
-}
-
-export type IPayloadAuth = {
-    [EAuthContextType.INITIAL]: {
-        currentUser: string | null;
-    };
-    [EAuthContextType.LOGOUT]: {};
+export type SelectAccountResult = {
+  needsInteractive: boolean; // true => open LoginWebView
 };
 
-export type IAuthAction<T extends EAuthContextType> = {
-    type: T;
-    payload: IPayloadAuth[T];
+export type IAuthContext = {
+  // operations
+  initialize: () => Promise<void>;
+  selectAccount: (username: string) => Promise<SelectAccountResult>;
+  loginInteractive: () => Promise<void>; // called by LoginWebView on success
+  logoutUser: (username: string) => Promise<void>; // remove just this account from vault
+  logoutAll: () => Promise<void>; // remove tokens + all accounts
+  // state
+  state: AuthState;
+  currentUser: string | null;
+};
+
+export enum EAuthContextType {
+  INIT = "INIT",
+  INIT_DONE_UNAUTH = "INIT_DONE_UNAUTH",
+  LOGIN_SUCCESS = "LOGIN_SUCCESS",
+  LOGOUT_ALL = "LOGOUT_ALL",
 }
+
+export type IAuthAction =
+  | { type: EAuthContextType.INIT }
+  | { type: EAuthContextType.INIT_DONE_UNAUTH }
+  | { type: EAuthContextType.LOGIN_SUCCESS; username: string | null }
+  | { type: EAuthContextType.LOGOUT_ALL };
