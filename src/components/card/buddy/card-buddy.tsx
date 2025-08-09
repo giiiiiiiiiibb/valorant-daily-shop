@@ -16,91 +16,82 @@ import { Offer } from "@/types/api/shop";
 import { NavigationProp } from "@/types/router/navigation";
 // utils
 import { removeCardType } from "@/utils/format-string";
+import { hexToRgba } from "@/utils/color";
 
 type Props = {
-    offer: Offer;
+  offer: Offer;
 };
 
 const CardBuddy = ({ offer }: Props) => {
+  const navigate = useNavigation<NavigationProp>();
+  const { palette } = useThemeContext();
 
-    const navigate = useNavigation<NavigationProp>();
+  const {
+    data: buddyData,
+    error: buddyError,
+    isLoading: isLoadingBuddy,
+  } = useGetGunBuddyByIdQuery(offer.Rewards[0].ItemID);
 
-    const { colors } = useThemeContext();
-
-    const {
-        data: buddyData,
-        error: buddyError,
-        isLoading: isLoadingBuddy,
-    } = useGetGunBuddyByIdQuery(offer.Rewards[0].ItemID);
-
-    const onCardPress = useCallback(() => {
-        if (buddyData) {
-            navigate.navigate("BuddyDetails", { buddy: buddyData.data, offer });
-        }
-    }, [navigate, buddyData, offer]);
-
-    if (isLoadingBuddy) {
-        return <CardBuddySkeleton />;
+  const onCardPress = useCallback(() => {
+    if (buddyData) {
+      navigate.navigate("BuddyDetails", { buddy: buddyData.data, offer });
     }
+  }, [navigate, buddyData, offer]);
 
-    if (buddyError || !buddyData) {
-        return <Error />;
-    }
+  if (isLoadingBuddy) {
+    return <CardBuddySkeleton />;
+  }
 
-    const buddy = buddyData.data;
+  if (buddyError || !buddyData) {
+    return <Error />;
+  }
 
-    return (
-        <TouchableRipple
-            key={offer.OfferID}
-            borderless
-            onPress={onCardPress}
-            rippleColor="rgba(255, 70, 86, .20)"
-            style={[styles.container, { backgroundColor: colors.card }]}
-        >
-            <ImageBackground
-                blurRadius={20}
-                style={styles.imageBackground}
-                source={{ uri: buddy.displayIcon }}
-            >
-                <View style={styles.infoContainer}>
-                    <Text variant="titleLarge" style={styles.title}>
-                        {removeCardType(buddy.displayName, "buddy")}
-                    </Text>
-                    <CostPoint currencyId={Object.keys(offer.Cost)[0]} cost={offer.Cost[Object.keys(offer.Cost)[0]]} />
-                </View>
-                <Image
-                    resizeMode="center"
-                    source={{ uri: buddy.displayIcon }}
-                    style={styles.buddyImage}
-                />
-            </ImageBackground>
-        </TouchableRipple>
-    );
+  const buddy = buddyData.data;
+
+  return (
+    <TouchableRipple
+      key={offer.OfferID}
+      borderless
+      onPress={onCardPress}
+      rippleColor={hexToRgba(palette.primary, 0.2)}
+      style={[styles.container, { backgroundColor: palette.card }]}
+    >
+      <ImageBackground blurRadius={20} style={styles.imageBackground} source={{ uri: buddy.displayIcon }}>
+        <View style={styles.infoContainer}>
+          <Text variant="titleLarge" style={styles.title}>
+            {removeCardType(buddy.displayName, "buddy")}
+          </Text>
+          <CostPoint currencyId={Object.keys(offer.Cost)[0]} cost={offer.Cost[Object.keys(offer.Cost)[0]]} />
+        </View>
+        <Image resizeMode="center" source={{ uri: buddy.displayIcon }} style={styles.buddyImage} />
+      </ImageBackground>
+    </TouchableRipple>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        borderRadius: 16,
-    },
-    imageBackground: {
-        padding: 16,
-        flexDirection: "row",
-    },
-    infoContainer: {
-        gap: 16,
-        flex: 1,
-        flexDirection: "column",
-        justifyContent: "space-between",
-    },
-    title: {
-        textTransform: "capitalize",
-    },
-    buddyImage: {
-        width: 100,
-        height: 100,
-        transform: [{ scale: 1.75 }],
-    },
+  container: {
+    flex: 1,
+    borderRadius: 16,
+  },
+  imageBackground: {
+    padding: 16,
+    flexDirection: "row",
+  },
+  infoContainer: {
+    gap: 16,
+    flex: 1,
+    flexDirection: "column",
+    justifyContent: "space-between",
+  },
+  title: {
+    textTransform: "capitalize",
+  },
+  buddyImage: {
+    width: 100,
+    height: 100,
+    transform: [{ scale: 1.75 }],
+  },
 });
 
 export default React.memo(CardBuddy);
