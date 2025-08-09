@@ -1,6 +1,5 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React from "react";
 import { View, StyleSheet } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 // components
 import Text from "@/components/typography/text";
 import CostPoint from "@/components/cost/cost-point";
@@ -12,7 +11,6 @@ import useAuthContext from "@/contexts/hook/use-auth-context";
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // utils
 import { hexToRgba } from "@/utils/color";
-import user from "@/utils/users";
 
 type Props = {
   activeTab: string;
@@ -21,39 +19,7 @@ type Props = {
 const TabHeader = ({ activeTab }: Props) => {
   const { palette } = useThemeContext();
   const { balance, gameName, tagLine } = useUserContext();
-  const { logoutAll, currentUser } = useAuthContext();
-
-  const [accountsCount, setAccountsCount] = useState<number>(0);
-
-  useFocusEffect(
-    useCallback(() => {
-      let mounted = true;
-      (async () => {
-        try {
-          const all = await user.getAllUsers();
-          if (mounted) setAccountsCount(Object.keys(all ?? {}).length);
-        } catch {
-          if (mounted) setAccountsCount(0);
-        }
-      })();
-      return () => {
-        mounted = false;
-      };
-    }, [])
-  );
-
-  const hasAnyAccount = accountsCount > 0;
-
-  const showAccountsTitle = useMemo(() => {
-    return activeTab === "Accounts" && !currentUser && hasAnyAccount;
-  }, [activeTab, currentUser, hasAnyAccount]);
-
-  const computedTitle = useMemo(() => {
-    if (activeTab === "Accounts") {
-      return (showAccountsTitle ? "Accounts" : "").toUpperCase();
-    }
-    return typeof activeTab === "string" ? activeTab.toUpperCase() : "";
-  }, [activeTab, showAccountsTitle]);
+  const { logoutAll } = useAuthContext();
 
   const renderRightComponent = () => {
     switch (activeTab) {
@@ -72,14 +38,13 @@ const TabHeader = ({ activeTab }: Props) => {
           </Text>
         );
       case "Accounts":
-        if (!hasAnyAccount) return null;
         return (
           <Button
             onPress={logoutAll}
             icon={<SvgLogout color={palette.primary} />}
             variant="icon"
             style={styles.logoutButton}
-            rippleColor={hexToRgba(palette.text, 0.12)}
+            underlayColor={hexToRgba(palette.text, 0.08)}
           />
         );
       default:
@@ -90,7 +55,7 @@ const TabHeader = ({ activeTab }: Props) => {
   return (
     <View style={[styles.header, { backgroundColor: palette.background }]}>
       <Text variant="displayMedium" style={styles.title}>
-        {computedTitle}
+        {typeof activeTab === "string" ? activeTab.toUpperCase() : ""}
       </Text>
       <View style={styles.rightComponentWrapper}>{renderRightComponent()}</View>
     </View>
@@ -126,4 +91,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default React.memo(TabHeader);
+export default TabHeader;
