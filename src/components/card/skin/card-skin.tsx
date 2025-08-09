@@ -9,7 +9,6 @@ import Loading from "@/components/loading/loading";
 import Error from "@/components/error/error";
 import Text from "@/components/typography/text";
 import CostPoint from "@/components/cost/cost-point";
-import CardSkinSkeleton from "@/components/card/skin/card-skin-skeleton";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // types
