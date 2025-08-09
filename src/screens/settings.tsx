@@ -1,4 +1,4 @@
-import React, { ReactElement, useMemo } from "react";
+import React, { ReactElement } from "react";
 import { StyleSheet, View } from "react-native";
 import { TouchableRipple } from "react-native-paper";
 // components
@@ -8,21 +8,15 @@ import useThemeContext from "@/contexts/hook/use-theme-context";
 // utils
 import { hexToRgba } from "@/utils/color";
 
-type ModeOption = { key: "system" | "light" | "dark"; label: string; description?: string };
-
-const OPTIONS: ModeOption[] = [
-  { key: "system", label: "Use system theme" },
-  { key: "light", label: "Use light theme" },
-  { key: "dark", label: "Use dark theme" },
+type ModeKey = "system" | "light" | "dark";
+const OPTIONS: { key: ModeKey; label: string }[] = [
+  { key: "system", label: "System" },
+  { key: "light", label: "Light" },
+  { key: "dark", label: "Dark" },
 ];
 
 const Settings = (): ReactElement => {
-  const { palette, mode, setMode, isDark } = useThemeContext();
-
-  const infoText = useMemo(() => {
-    if (mode !== "system") return `App theme set to ${mode}.`;
-    return `Following device theme (${isDark ? "dark" : "light"}).`;
-  }, [mode, isDark]);
+  const { palette, mode, setMode } = useThemeContext();
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
@@ -31,55 +25,50 @@ const Settings = (): ReactElement => {
           Appearance
         </Text>
 
-        <View style={styles.optionList}>
-          {OPTIONS.map((opt) => {
+        <View
+          style={[
+            styles.segmented,
+            {
+              backgroundColor: palette.card,
+              borderColor: hexToRgba(palette.text, 0.08),
+            },
+          ]}
+        >
+          {OPTIONS.map((opt, idx) => {
             const selected = mode === opt.key;
+            const isLast = idx === OPTIONS.length - 1;
+
             return (
               <TouchableRipple
                 key={opt.key}
                 borderless
-                onPress={() => setMode(opt.key)}
                 rippleColor={hexToRgba(palette.text, 0.12)}
+                onPress={() => setMode(opt.key)}
                 style={[
-                  styles.optionRow,
-                  {
-                    backgroundColor: palette.card,
-                    borderColor: selected ? palette.primary : palette.card,
+                  styles.segment,
+                  !isLast && {
+                    borderRightWidth: StyleSheet.hairlineWidth,
+                    borderRightColor: hexToRgba(palette.text, 0.08),
+                  },
+                  selected && {
+                    backgroundColor: hexToRgba(palette.primary, 0.18),
                   },
                 ]}
               >
-                <View style={styles.optionContent}>
-                  <View style={styles.optionTextWrap}>
-                    <Text variant="titleMedium">{opt.label}</Text>
-                    {opt.description ? (
-                      <Text variant="bodySmall" style={styles.optionDescription}>
-                        {opt.description}
-                      </Text>
-                    ) : null}
-                  </View>
-
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      { borderColor: selected ? palette.primary : hexToRgba(palette.text, 0.3) },
-                    ]}
-                  >
-                    {selected ? <View style={[styles.radioInner, { backgroundColor: palette.primary }]} /> : null}
-                  </View>
-                </View>
+                <Text
+                  variant="titleMedium"
+                  style={[
+                    styles.segmentLabel,
+                    { color: selected ? palette.text : hexToRgba(palette.text, 0.75) },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
               </TouchableRipple>
             );
           })}
         </View>
-
-        <Text variant="bodySmall" style={[styles.helper, { color: hexToRgba(palette.text, 0.6) }]}>
-          {infoText}
-        </Text>
       </View>
-
-      <Text style={[styles.placeholder, { color: hexToRgba(palette.text, 0.6) }]} variant="bodyLarge">
-        More settings coming soon.
-      </Text>
     </View>
   );
 };
@@ -98,44 +87,22 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     fontFamily: "Vandchrome",
   },
-  optionList: {
-    gap: 8,
-  },
-  optionRow: {
-    padding: 12,
+  segmented: {
+    borderWidth: 1,
     borderRadius: 12,
-    borderWidth: 2,
-  },
-  optionContent: {
-    gap: 8,
-    alignItems: "center",
+    overflow: "hidden",
     flexDirection: "row",
-    justifyContent: "space-between",
   },
-  optionTextWrap: {
+  segment: {
     flex: 1,
-    gap: 4,
-  },
-  optionDescription: {
-    opacity: 0.6,
-  },
-  radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
+    paddingVertical: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  segmentLabel: {
+    fontWeight: "600",
   },
-  helper: {
-    marginTop: 4,
-  },
-  placeholder: {
+  footerHint: {
     textAlign: "center",
   },
 });
