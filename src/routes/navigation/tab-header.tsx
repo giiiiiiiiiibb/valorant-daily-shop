@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, StyleSheet } from "react-native";
 // components
 import Text from "@/components/typography/text";
@@ -11,15 +11,18 @@ import useAuthContext from "@/contexts/hook/use-auth-context";
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // utils
 import { hexToRgba } from "@/utils/color";
+import userStore from "@/utils/users";
 
 type Props = {
-  activeTab: string;
+  activeTab?: string;
 };
 
 const TabHeader = ({ activeTab }: Props) => {
   const { palette } = useThemeContext();
   const { balance, gameName, tagLine } = useUserContext();
   const { logoutAll } = useAuthContext();
+
+  const hasAnySavedAccount = useMemo(() => userStore.peekHasUsersSync(), []);
 
   const renderRightComponent = () => {
     switch (activeTab) {
@@ -38,7 +41,7 @@ const TabHeader = ({ activeTab }: Props) => {
           </Text>
         );
       case "Accounts":
-        return (
+        return hasAnySavedAccount ? (
           <Button
             onPress={logoutAll}
             icon={<SvgLogout color={palette.primary} />}
@@ -46,7 +49,7 @@ const TabHeader = ({ activeTab }: Props) => {
             style={styles.logoutButton}
             underlayColor={hexToRgba(palette.text, 0.08)}
           />
-        );
+        ) : null;
       default:
         return null;
     }
@@ -83,12 +86,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  userInfo: {
-    opacity: 0.5,
-  },
-  logoutButton: {
-    padding: 8,
-  },
+  userInfo: { opacity: 0.5 },
+  logoutButton: { padding: 8 },
 });
 
-export default TabHeader;
+export default React.memo(TabHeader);
