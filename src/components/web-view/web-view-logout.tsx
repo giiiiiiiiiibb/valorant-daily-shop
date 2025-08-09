@@ -13,8 +13,8 @@ import { LogoutScreenProps } from "@/types/router/navigation";
 const LOGOUT_URL = "https://auth.riotgames.com/logout";
 
 /**
- * Optional helper that logs out from Riot's web session (doesn't touch app tokens).
- * After the first successful navigation to LOGOUT_URL, we remove the account locally.
+ * Logs out from Riot's web session (optional) and removes the selected local account.
+ * Dismisses itself once done so it works from either auth or app flows.
  */
 const LogoutWebView = ({ route, navigation }: LogoutScreenProps) => {
   const { username } = route.params;
@@ -24,12 +24,11 @@ const LogoutWebView = ({ route, navigation }: LogoutScreenProps) => {
   const onNavChange = useCallback(
     async (event: WebViewNavigation) => {
       if (!event?.url) return;
-      // Once we hit /logout we consider the Riot session cleared
       if (event.url.startsWith(LOGOUT_URL)) {
         try {
           await logoutUser(username);
         } finally {
-          navigation.navigate("Accounts");
+          navigation.goBack();
         }
       }
     },
