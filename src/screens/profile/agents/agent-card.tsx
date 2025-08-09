@@ -6,76 +6,71 @@ import SvgLock from "@/components/icon/lock";
 import SvgCheck from "@/components/icon/check";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
+// utils
+import { hexToRgba } from "@/utils/color";
 
 type Props = {
-    index: number;
-    owned: boolean;
-    agentIndex: number;
-    displayIcon: string;
-    onPress: () => void;
-}
+  index: number;
+  owned: boolean;
+  agentIndex: number;
+  displayIcon: string;
+  onPress: () => void;
+};
 
 const AgentCard = ({ index, owned, agentIndex, displayIcon, onPress }: Props) => {
+  const { palette } = useThemeContext();
 
-    const { colors } = useThemeContext();
-
-    return (
-        <TouchableRipple
-            borderless
-            key={index}
-            onPress={onPress}
-            style={[
-                styles.touchable,
-                {
-                    backgroundColor: colors.card,
-                    borderColor: agentIndex === index ? colors.primary : colors.card,
-                },
-            ]}
-            rippleColor="rgba(255, 70, 86, .20)"
-        >
-            <>
-                {owned ? (
-                    <View style={styles.checkOverlay}>
-                        <SvgCheck color="white" width={32} height={32} opacity={0.8} />
-                    </View>
-                ) : (
-                    <View style={styles.lockOverlay}>
-                        <SvgLock color="white" width={32} height={32} />
-                    </View>
-                )}
-                <Image source={{ uri: displayIcon }} style={styles.agentImage} />
-            </>
-        </TouchableRipple>
-    );
+  return (
+    <TouchableRipple
+      borderless
+      key={index}
+      onPress={onPress}
+      style={[
+        styles.touchable,
+        {
+          backgroundColor: palette.card,
+          borderColor: agentIndex === index ? palette.primary : palette.card,
+        },
+      ]}
+      rippleColor={hexToRgba(palette.primary, 0.2)}
+    >
+      <>
+        {owned ? (
+          <View style={[styles.overlayBase, { backgroundColor: hexToRgba(palette.text, 0.2) }]}>
+            <SvgCheck color={palette.text} width={32} height={32} />
+          </View>
+        ) : (
+          <View style={[styles.overlayBase, { backgroundColor: hexToRgba(palette.text, 0.5), alignItems: "center" }]}>
+            <SvgLock color={palette.text} width={32} height={32} />
+          </View>
+        )}
+        <Image source={{ uri: displayIcon }} style={styles.agentImage} />
+      </>
+    </TouchableRipple>
+  );
 };
 
 const styles = StyleSheet.create({
-    touchable: {
-        gap: 4,
-        borderWidth: 2,
-        borderRadius: 8,
-        position: "relative",
-    },
-    checkOverlay: {
-        zIndex: 10,
-        position: "absolute",
-        alignItems: "flex-end",
-        justifyContent: "flex-end",
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: "rgba(34, 36, 41, .2)",
-    },
-    lockOverlay: {
-        zIndex: 10,
-        position: "absolute",
-        alignItems: "center",
-        justifyContent: "center",
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: "rgba(34, 36, 41, .5)",
-    },
-    agentImage: {
-        width: 96,
-        height: 96,
-    },
+  touchable: {
+    gap: 4,
+    borderWidth: 2,
+    borderRadius: 8,
+    position: "relative",
+  },
+  overlayBase: {
+    zIndex: 10,
+    position: "absolute",
+    justifyContent: "flex-end",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 8,
+  },
+  agentImage: {
+    width: 96,
+    height: 96,
+  },
 });
 
 export default React.memo(AgentCard);
