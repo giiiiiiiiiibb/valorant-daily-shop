@@ -12,53 +12,57 @@ import NightMarketCardItem from "@/sections/shop/night-market/night-market-card-
 import { secondsToDhms } from "@/utils/format-time";
 
 const NightMarket = () => {
-    const { colors } = useThemeContext();
-    const { nightMarket } = useNightMarketContext();
+  const { palette } = useThemeContext();
+  const { nightMarket } = useNightMarketContext();
 
-    if (!nightMarket || !nightMarket.BonusStoreOffers) {
-        return <Loading />;
-    }
+  if (!nightMarket || !nightMarket.BonusStoreOffers) {
+    return <Loading />;
+  }
 
-    const nightMarketOffers = useMemo(() => (
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} overScrollMode="never">
-            {nightMarket.BonusStoreOffers.map((offer, index) => (
-                <NightMarketCardItem item={offer} key={index} />
-            ))}
-        </ScrollView>
-    ), [nightMarket.BonusStoreOffers]);
+  const nightMarketOffers = useMemo(
+    () => (
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
+        overScrollMode="never"
+      >
+        {nightMarket.BonusStoreOffers.map((offer, index) => (
+          <NightMarketCardItem item={offer} key={index} />
+        ))}
+      </ScrollView>
+    ),
+    [nightMarket.BonusStoreOffers]
+  );
 
-    return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={styles.header}>
-                <Text variant="titleMedium" style={{ color: colors.text }}>TIME LEFT:</Text>
-                <Text variant="titleMedium" style={styles.timeLeftText}>
-                    {secondsToDhms(nightMarket?.BonusStoreRemainingDurationInSeconds ?? 0)}
-                </Text>
-            </View>
-            {nightMarketOffers}
-        </View>
-    );
+  return (
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <View style={styles.header}>
+        <Text variant="titleMedium" style={{ color: palette.text }}>
+          TIME LEFT:
+        </Text>
+        <Text variant="titleMedium" style={{ color: palette.primary }}>
+          {secondsToDhms(nightMarket?.BonusStoreRemainingDurationInSeconds ?? 0)}
+        </Text>
+      </View>
+      {nightMarketOffers}
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: 16,
-    },
-    timeLeftText: {
-        color: "#E5E1B2",
-    },
-    scrollView: {
-        paddingHorizontal: 16,
-    },
-    scrollViewContent: {
-        rowGap: 16,
-    },
+  container: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+  },
+  scrollView: {
+    paddingHorizontal: 16,
+  },
+  scrollViewContent: {
+    rowGap: 16,
+  },
 });
 
 export default React.memo(NightMarket);
