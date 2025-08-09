@@ -1,4 +1,4 @@
-import { StatusBar } from "react-native";
+import { StatusBar, View } from "react-native";
 import React, { ReactElement, useMemo } from "react";
 import { IconButton } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
@@ -30,28 +30,43 @@ const Router = (): ReactElement | null => {
   const { palette, isDark } = useThemeContext();
   const navigation = useNavigation();
 
-  // While auth bootstraps, avoid mounting the navigator to prevent wrong initialRoute
-  if (!isInitialized) return null;
+  const initialRouteName = useMemo(
+    () => (currentUser ? "Home" : "Accounts"),
+    [currentUser]
+  );
 
-  // Decide initial route at the moment we first mount the navigator
-  const initialRouteName = useMemo(() => (currentUser ? "Home" : "Accounts"), [currentUser]);
+  const optionsDetailsScreen = useMemo(
+    () => ({
+      headerShown: true,
+      header: () => (
+        <TabHeader
+          leftComponent={
+            <IconButton
+              size={32}
+              icon="arrow-left"
+              onPress={() => navigation.goBack()}
+              iconColor={palette.text}
+            />
+          }
+        />
+      ),
+      animationTypeForReplace: "pop" as const,
+    }),
+    [navigation, palette.text]
+  );
 
-  const optionsDetailsScreen = {
-    headerShown: true,
-    header: () => (
-      <TabHeader
-        leftComponent={
-          <IconButton
-            size={32}
-            icon="arrow-left"
-            onPress={() => navigation.goBack()}
-            iconColor={palette.text}
-          />
-        }
-      />
-    ),
-    animationTypeForReplace: "pop" as const,
-  };
+  // If auth not initialized yet, render a tiny placeholder (after hooks)
+  if (!isInitialized) {
+    return (
+      <>
+        <StatusBar
+          barStyle={isDark ? "light-content" : "dark-content"}
+          backgroundColor={palette.background}
+        />
+        <View style={{ flex: 1, backgroundColor: palette.background }} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -72,9 +87,7 @@ const Router = (): ReactElement | null => {
         />
 
         {currentUser == null ? (
-          <>
-            <Stack.Screen name="Accounts" component={Accounts} />
-          </>
+          <Stack.Screen name="Accounts" component={Accounts} />
         ) : (
           <>
             <Stack.Screen name="Home" component={TabBar} />
