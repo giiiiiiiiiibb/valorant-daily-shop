@@ -12,50 +12,51 @@ import CardListOffer from "@/sections/shop/daily-shop/card-list-offer";
 import { secToTime } from "@/utils/format-time";
 
 const DailyShop = () => {
-    const { colors } = useThemeContext();
-    const { dailyShop } = useDailyShopContext();
+  const { palette } = useThemeContext();
+  const { dailyShop } = useDailyShopContext();
 
-    const remainingTime = useMemo(
-        () => secToTime(dailyShop.SingleItemOffersRemainingDurationInSeconds),
-        [dailyShop.SingleItemOffersRemainingDurationInSeconds]
-    );
+  const remainingTime = useMemo(
+    () => secToTime(dailyShop.SingleItemOffersRemainingDurationInSeconds),
+    [dailyShop.SingleItemOffersRemainingDurationInSeconds]
+  );
 
-    if (dailyShop.SingleItemOffers.length === 0) {
-        return (
-            <View style={[styles.container, { backgroundColor: colors.background }]}>
-                <Loading />
-            </View>
-        );
-    }
-
+  if (dailyShop.SingleItemOffers.length === 0) {
     return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={styles.header}>
-                <Text variant="titleMedium">NEXT OFFER:</Text>
-                <Text key={dailyShop.SingleItemOffersRemainingDurationInSeconds} variant="titleMedium" style={styles.remainingTime}>
-                    {remainingTime}
-                </Text>
-            </View>
-            <CardListOffer offers={dailyShop.SingleItemStoreOffers} />
-        </View>
+      <View style={[styles.container, { backgroundColor: palette.background }]}>
+        <Loading />
+      </View>
     );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <View style={styles.header}>
+        <Text variant="titleMedium">NEXT OFFER:</Text>
+        <Text
+          key={dailyShop.SingleItemOffersRemainingDurationInSeconds}
+          variant="titleMedium"
+          style={{ color: palette.primary }}
+        >
+          {remainingTime}
+        </Text>
+      </View>
+      <CardListOffer offers={dailyShop.SingleItemStoreOffers} />
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingTop: 16,
-        paddingHorizontal: 16,
-        gap: 8,
-    },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    remainingTime: {
-        color: "#E5E1B2",
-    },
+  container: {
+    flex: 1,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
 });
 
 export default React.memo(DailyShop);
