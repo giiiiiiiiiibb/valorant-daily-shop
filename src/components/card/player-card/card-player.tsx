@@ -16,108 +16,95 @@ import { Offer } from "@/types/api/shop";
 import { NavigationProp } from "@/types/router/navigation";
 // utils
 import { removeCardType } from "@/utils/format-string";
+import { hexToRgba } from "@/utils/color";
 
 type CardPlayerProps = {
-    offer: Offer;
+  offer: Offer;
 };
 
 const CardPlayer = ({ offer }: CardPlayerProps) => {
+  const { palette } = useThemeContext();
+  const navigate = useNavigation<NavigationProp>();
 
-    const { colors } = useThemeContext();
+  const {
+    data: playerCardData,
+    error: playerCardError,
+    isLoading: isLoadingCard,
+  } = useGetPlayerCardIdQuery(offer.Rewards[0].ItemID);
 
-    const navigate = useNavigation<NavigationProp>();
-
-    const {
-        data: playerCardData,
-        error: playerCardError,
-        isLoading: isLoadingCard,
-    } = useGetPlayerCardIdQuery(offer.Rewards[0].ItemID);
-
-    const onCardPress = useCallback(() => {
-        if (playerCardData) {
-            navigate.navigate("PlayerCardDetails", { playercard: playerCardData.data, offer });
-        }
-    }, [navigate, playerCardData, offer]);
-
-    if (isLoadingCard) {
-        return <CardPlayerSkeleton />;
+  const onCardPress = useCallback(() => {
+    if (playerCardData) {
+      navigate.navigate("PlayerCardDetails", { playercard: playerCardData.data, offer });
     }
+  }, [navigate, playerCardData, offer]);
 
-    if (playerCardError || !playerCardData) {
-        return <Error />;
-    }
+  if (isLoadingCard) {
+    return <CardPlayerSkeleton />;
+  }
 
-    const playercard = playerCardData.data;
+  if (playerCardError || !playerCardData) {
+    return <Error />;
+  }
 
-    return (
-        <TouchableRipple
-            borderless
-            key={offer.OfferID}
-            onPress={onCardPress}
-            style={[styles.container, { backgroundColor: colors.card }]}
-            rippleColor="rgba(255, 70, 86, .20)"
-        >
-            <ImageBackground
-                blurRadius={16}
-                source={{ uri: playercard.wideArt }}
-                style={styles.imageBackground}
-            >
-                <View style={styles.infoContainer}>
-                    <Text variant="titleLarge" style={styles.title} numberOfLines={1}>
-                        {removeCardType(playercard.displayName, "card")}
-                    </Text>
-                    <View style={styles.imageContainer}>
-                        <Image
-                            borderRadius={8}
-                            source={{ uri: playercard.wideArt }}
-                            style={styles.wideArt}
-                        />
-                    </View>
-                    <CostPoint currencyId={Object.keys(offer.Cost)[0]} cost={offer.Cost[Object.keys(offer.Cost)[0]]} />
-                </View>
-                <Image
-                    resizeMode="center"
-                    source={{ uri: playercard.largeArt }}
-                    style={styles.largeArt}
-                />
-            </ImageBackground>
-        </TouchableRipple>
-    );
+  const playercard = playerCardData.data;
+
+  return (
+    <TouchableRipple
+      borderless
+      key={offer.OfferID}
+      onPress={onCardPress}
+      style={[styles.container, { backgroundColor: palette.card }]}
+      rippleColor={hexToRgba(palette.primary, 0.2)}
+    >
+      <ImageBackground blurRadius={16} source={{ uri: playercard.wwideArt }} style={styles.imageBackground}>
+        <View style={styles.infoContainer}>
+          <Text variant="titleLarge" style={styles.title} numberOfLines={1}>
+            {removeCardType(playercard.displayName, "card")}
+          </Text>
+          <View style={styles.imageContainer}>
+            <Image borderRadius={8} source={{ uri: playercard.wideArt }} style={styles.wideArt} />
+          </View>
+          <CostPoint currencyId={Object.keys(offer.Cost)[0]} cost={offer.Cost[Object.keys(offer.Cost)[0]]} />
+        </View>
+        <Image resizeMode="center" source={{ uri: playercard.largeArt }} style={styles.largeArt} />
+      </ImageBackground>
+    </TouchableRipple>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        borderRadius: 16,
-        overflow: "hidden",
-    },
-    imageBackground: {
-        height: 220,
-        flexDirection: "row",
-        overflow: "hidden",
-    },
-    infoContainer: {
-        gap: 16,
-        flex: 1,
-        padding: 16,
-        flexDirection: "column",
-        justifyContent: "space-between",
-    },
-    title: {
-        textTransform: "capitalize",
-    },
-    imageContainer: {
-        flexDirection: "row",
-        justifyContent: "space-around",
-    },
-    wideArt: {
-        width: "100%",
-        height: 100,
-    },
-    largeArt: {
-        width: 92,
-        height: 220,
-    },
+  container: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  imageBackground: {
+    height: 220,
+    flexDirection: "row",
+    overflow: "hidden",
+  },
+  infoContainer: {
+    gap: 16,
+    flex: 1,
+    padding: 16,
+    flexDirection: "column",
+    justifyContent: "space-between",
+  },
+  title: {
+    textTransform: "capitalize",
+  },
+  imageContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  wideArt: {
+    width: "100%",
+    height: 100,
+  },
+  largeArt: {
+    width: 92,
+    height: 220,
+  },
 });
 
 export default React.memo(CardPlayer);
