@@ -22,7 +22,7 @@ import { EAuthContextType } from "@/types/context/auth";
 const BottomNavigation = createMaterialBottomTabNavigator();
 
 const TabBar = () => {
-  const { colors } = useThemeContext();
+  const { palette } = useThemeContext();
   const { dispatch } = useAuthContext();
   const [activeTab, setActiveTab] = useState("Shops");
 
@@ -33,10 +33,10 @@ const TabBar = () => {
         sceneAnimationEnabled
         initialRouteName="Shops"
         inactiveColor="#7A7B7E"
-        activeColor={colors.primary}
+        activeColor={palette.primary}
         sceneAnimationType="shifting"
-        activeIndicatorStyle={{ backgroundColor: colors.card }}
-        barStyle={{ justifyContent: "center", backgroundColor: "#1B1D21" }}
+        activeIndicatorStyle={{ backgroundColor: palette.card }}
+        barStyle={{ justifyContent: "center", backgroundColor: palette.background }}
         screenListeners={{
           state: (e) => {
             const routeName = e.data.state.routes[e.data.state.index].name;
