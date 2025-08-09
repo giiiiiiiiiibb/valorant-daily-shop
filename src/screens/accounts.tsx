@@ -6,28 +6,25 @@ import Text from "@/components/typography/text";
 import UserList from "@/components/account/user-list";
 // theme
 import useThemeContext from "@/contexts/hook/use-theme-context";
-// navigation
-import { useNavigation } from "@react-navigation/native";
-import { NavigationProp } from "@/types/router/navigation";
 // utils
 import { hexToRgba } from "@/utils/color";
 import userStore from "@/utils/users";
 import useAuthContext from "@/contexts/hook/use-auth-context";
+// routes
+import { openLoginModal } from "@/routes/navigation/navigation-service";
 
 const Accounts = (): ReactElement => {
   const { palette } = useThemeContext();
-  const navigation = useNavigation<NavigationProp>();
   const { state } = useAuthContext();
 
   const hasAnyUser = useMemo(() => userStore.peekHasUsersSync(), []);
-
   const showTitle = state !== "authenticated" && hasAnyUser;
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
       {showTitle && (
         <View style={styles.header}>
-          <Text variant="displaySmall" style={[styles.title]}>
+          <Text variant="displaySmall" style={styles.title}>
             ACCOUNTS
           </Text>
         </View>
@@ -37,7 +34,7 @@ const Accounts = (): ReactElement => {
         <View style={styles.buttonContainer}>
           <Button
             text="+ Add Account"
-            onPress={() => navigation.navigate("Login")}
+            onPress={openLoginModal}
             underlayColor={hexToRgba(palette.text, 0.08)}
             backgroundColor={palette.primary}
           />
