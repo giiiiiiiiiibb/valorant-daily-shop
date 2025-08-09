@@ -18,136 +18,132 @@ import { NavigationProp } from "@/types/router/navigation";
 // utils
 import { getWeaponName } from "@/utils/format-string";
 import { getContentTierIcon } from "@/utils/content-tier-icon";
+import { hexToRgba } from "@/utils/color";
 
 const WIDTH = Dimensions.get("window").width;
 
 type Props = {
-    item: Offer;
+  item: Offer;
 };
 
 const CardItemOffer = ({ item }: Props): ReactElement => {
+  const { palette } = useThemeContext();
+  const navigate = useNavigation<NavigationProp>();
 
-    const { colors } = useThemeContext();
+  const {
+    data: weaponSkinData,
+    error: weaponSkinError,
+    isLoading: isLoadingWeapon,
+  } = useGetWeaponByLevelIdQuery(item.Rewards[0].ItemID);
 
-    const navigate = useNavigation<NavigationProp>();
+  const {
+    data: themeData,
+    error: themeError,
+    isLoading: isLoadingTheme,
+  } = useGetThemeByIdQuery(weaponSkinData?.data?.themeUuid ?? "");
 
-    const {
-        data: weaponSkinData,
-        error: weaponSkinError,
-        isLoading: isLoadingWeapon,
-    } = useGetWeaponByLevelIdQuery(item.Rewards[0].ItemID);
+  const skinData = weaponSkinData?.data;
 
-    const {
-        data: themeData,
-        error: themeError,
-        isLoading: isLoadingTheme,
-    } = useGetThemeByIdQuery(weaponSkinData?.data?.themeUuid ?? "");
+  const filteredDisplayName = useMemo(() => {
+    if (!weaponSkinData?.data?.displayName) return "";
+    return getWeaponName(weaponSkinData.data.displayName, themeData?.data?.displayName);
+  }, [weaponSkinData?.data?.displayName, themeData?.data?.displayName]);
 
-    const skinData = weaponSkinData?.data;
+  const onCardPress = useCallback(() => {
+    if (!weaponSkinData || !themeData) return;
+    navigate.navigate("SkinDetails", {
+      skin: weaponSkinData.data,
+      skinType: filteredDisplayName,
+      theme: themeData.data,
+    });
+  }, [navigate, weaponSkinData, themeData, filteredDisplayName]);
 
-    const filteredDisplayName = useMemo(() => {
-        if (!weaponSkinData?.data?.displayName) return "";
-        return getWeaponName(weaponSkinData.data.displayName, themeData?.data?.displayName);
-    }, [weaponSkinData?.data?.displayName, themeData?.data?.displayName]);
+  const MemoizedCardOfferSkeleton = useMemo(() => <CardOfferSkeleton />, []);
 
-    const onCardPress = useCallback(() => {
-        if (!weaponSkinData || !themeData) return;
-        navigate.navigate("SkinDetails", {
-            skin: weaponSkinData.data,
-            skinType: filteredDisplayName,
-            theme: themeData.data,
-        });
-    }, [navigate, weaponSkinData, themeData, filteredDisplayName]);
+  if (isLoadingWeapon || isLoadingTheme) return MemoizedCardOfferSkeleton;
+  if (weaponSkinError || !skinData || themeError || !themeData) return <Error />;
 
-    const MemoizedCardOfferSkeleton = useMemo(() => <CardOfferSkeleton />, []);
-
-    if (isLoadingWeapon || isLoadingTheme) return MemoizedCardOfferSkeleton;
-    if (weaponSkinError || !skinData || themeError || !themeData) return <Error />;
-
-    return (
-        <TouchableRipple
-            borderless
-            key={item.OfferID}
-            onPress={onCardPress}
-            rippleColor="rgba(255, 70, 86, .20)"
-            style={[styles.touchable, { backgroundColor: colors.card }]}
-        >
-            <ImageBackground style={styles.imageBackground} source={{ uri: skinData.wallpaper }}>
-                {!skinData.wallpaper && (
-                    <Image
-                        blurRadius={2}
-                        style={styles.contentTierIcon}
-                        source={getContentTierIcon(skinData.contentTierUuid)}
-                    />
-                )}
-                <Text variant="titleLarge" numberOfLines={1}>
-                    {themeData.data.displayName}
-                </Text>
-                {filteredDisplayName !== "" && (
-                    <View style={styles.row}>
-                        <Image source={{ uri: themeData.data.displayIcon }} style={styles.icon} />
-                        <Text
-                            numberOfLines={1}
-                            variant="titleMedium"
-                            style={styles.filteredDisplayName}
-                        >
-                            {filteredDisplayName}
-                        </Text>
-                    </View>
-                )}
-                <Image
-                    resizeMode="center"
-                    style={styles.skinImage}
-                    source={{
-                        uri: skinData.levels[0].displayIcon
-                            ?? skinData.chromas[0].displayIcon
-                            ?? skinData.chromas[0].fullRender,
-                    }}
-                />
-                <CostPoint currencyId={Object.keys(item.Cost)[0]} cost={item.Cost[Object.keys(item.Cost)[0]]} />
-            </ImageBackground>
-        </TouchableRipple>
-    );
+  return (
+    <TouchableRipple
+      borderless
+      key={item.OfferID}
+      onPress={onCardPress}
+      rippleColor={hexToRgba(palette.primary, 0.2)}
+      style={[styles.touchable, { backgroundColor: palette.card }]}
+    >
+      <ImageBackground style={styles.imageBackground} source={{ uri: skinData.wallpaper }}>
+        {!skinData.wallpaper && (
+          <Image
+            blurRadius={2}
+            style={styles.contentTierIcon}
+            source={getContentTierIcon(skinData.contentTierUuid)}
+          />
+        )}
+        <Text variant="titleLarge" numberOfLines={1}>
+          {themeData.data.displayName}
+        </Text>
+        {filteredDisplayName !== "" && (
+          <View style={styles.row}>
+            <Image source={{ uri: themeData.data.displayIcon }} style={styles.icon} />
+            <Text numberOfLines={1} variant="titleMedium" style={styles.filteredDisplayName}>
+              {filteredDisplayName}
+            </Text>
+          </View>
+        )}
+        <Image
+          resizeMode="center"
+          style={styles.skinImage}
+          source={{
+            uri:
+              skinData.levels[0].displayIcon ??
+              skinData.chromas[0].displayIcon ??
+              skinData.chromas[0].fullRender,
+          }}
+        />
+        <CostPoint currencyId={Object.keys(item.Cost)[0]} cost={item.Cost[Object.keys(item.Cost)[0]]} />
+      </ImageBackground>
+    </TouchableRipple>
+  );
 };
 
 const styles = StyleSheet.create({
-    touchable: {
-        flex: 1,
-        borderRadius: 16,
-        overflow: "hidden",
-        maxWidth: WIDTH / 2 - 20,
-    },
-    imageBackground: {
-        flex: 1,
-        padding: 16,
-        position: "relative",
-    },
-    contentTierIcon: {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        opacity: 0.1,
-    },
-    row: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-    },
-    icon: {
-        width: 16,
-        height: 16,
-    },
-    filteredDisplayName: {
-        flex: 1,
-        opacity: 0.5,
-        textTransform: "uppercase",
-    },
-    skinImage: {
-        flex: 1,
-        transform: [{ rotate: "22.5deg" }],
-    },
+  touchable: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+    maxWidth: WIDTH / 2 - 20,
+  },
+  imageBackground: {
+    flex: 1,
+    padding: 16,
+    position: "relative",
+  },
+  contentTierIcon: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.1,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  icon: {
+    width: 16,
+    height: 16,
+  },
+  filteredDisplayName: {
+    flex: 1,
+    opacity: 0.5,
+    textTransform: "uppercase",
+  },
+  skinImage: {
+    flex: 1,
+    transform: [{ rotate: "22.5deg" }],
+  },
 });
 
 export default React.memo(CardItemOffer);
