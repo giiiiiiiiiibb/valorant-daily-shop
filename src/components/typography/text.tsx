@@ -5,20 +5,20 @@ import { Text as TextPaper, TextProps } from "react-native-paper";
 import useThemeContext from "@/contexts/hook/use-theme-context";
 
 const Text = ({ children, style, ...props }: TextProps<string>): ReactElement => {
+  const { palette } = useThemeContext();
 
-    const { colors } = useThemeContext();
+  // Default typography styling, theme-aware text color.
+  let customStyle: StyleProp<TextStyle> = { color: palette.text, fontFamily: "Nota" };
+  if (style) customStyle = [customStyle, style];
 
-    let customStyle: StyleProp<TextStyle> = { color: colors.text, fontFamily: "Nota" };
+  // Avoid passing "key" down as a prop
+  const { key, ...rest } = props as any;
 
-    if (style) customStyle = [customStyle, style];
-
-    const { key, ...rest } = props;
-
-    return (
-        <TextPaper key={key} {...rest} style={customStyle}>
-            {children}
-        </TextPaper>
-    );
+  return (
+    <TextPaper key={key} {...(rest as TextProps<string>)} style={customStyle}>
+      {children}
+    </TextPaper>
+  );
 };
 
 export default Text;
