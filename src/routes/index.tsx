@@ -1,8 +1,8 @@
 import React, { ReactElement, useMemo } from "react";
 import { StatusBar } from "react-native";
 import { IconButton } from "react-native-paper";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 // screens (auth flow)
 import Accounts from "@/screens/accounts";
 import LoginWebView from "@/components/web-view/web-view-login";
@@ -25,11 +25,11 @@ import { RootStackParamList } from "@/types/router/navigation";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const AppDetailScreens = () => {
+const AppStack = () => {
   const navigation = useNavigation();
   const { palette } = useThemeContext();
 
-  const detailsHeader = useMemo(
+  const optionsDetailsScreen = useMemo(
     () => ({
       headerShown: true,
       header: () => (
@@ -52,17 +52,17 @@ const AppDetailScreens = () => {
   return (
     <>
       <Stack.Screen name="Home" component={TabBar} options={{ headerShown: false }} />
-      <Stack.Screen name="Plugin" component={Plugin} options={{ animationTypeForReplace: "pop" }} />
-      <Stack.Screen name="SkinDetails" component={SkinDetails} options={detailsHeader} />
-      <Stack.Screen name="PlayerCardDetails" component={PlayerCardDetails} options={detailsHeader} />
-      <Stack.Screen name="BuddyDetails" component={BuddyDetails} options={detailsHeader} />
-      <Stack.Screen name="SprayDetails" component={SprayDetails} options={detailsHeader} />
-      <Stack.Screen name="CollectionDetails" component={CollectionDetailsScreen} options={detailsHeader} />
+      <Stack.Screen name="Plugin" component={Plugin} options={{ animationTypeForReplace: "pop", headerShown: false }} />
+      <Stack.Screen name="SkinDetails" component={SkinDetails} options={optionsDetailsScreen} />
+      <Stack.Screen name="PlayerCardDetails" component={PlayerCardDetails} options={optionsDetailsScreen} />
+      <Stack.Screen name="BuddyDetails" component={BuddyDetails} options={optionsDetailsScreen} />
+      <Stack.Screen name="SprayDetails" component={SprayDetails} options={optionsDetailsScreen} />
+      <Stack.Screen name="CollectionDetails" component={CollectionDetailsScreen} options={optionsDetailsScreen} />
     </>
   );
 };
 
-const AuthScreens = () => (
+const AuthStack = () => (
   <>
     <Stack.Screen name="Accounts" component={Accounts} options={{ headerShown: false }} />
   </>
@@ -85,13 +85,10 @@ const Router = (): ReactElement => {
           <Stack.Screen name="Logout" component={LogoutWebView} />
         </Stack.Group>
 
-        {state === "initializing" ? (
-          // Minimal placeholder to keep hooks order stable while bootstrapping
-          <Stack.Screen name="Accounts" component={Accounts} />
-        ) : state === "authenticated" ? (
-          <Stack.Group>{AppDetailScreens()}</Stack.Group>
+        {state === "authenticated" ? (
+          <Stack.Group>{AppStack()}</Stack.Group>
         ) : (
-          <Stack.Group>{AuthScreens()}</Stack.Group>
+          <Stack.Group>{AuthStack()}</Stack.Group>
         )}
       </Stack.Navigator>
     </>
