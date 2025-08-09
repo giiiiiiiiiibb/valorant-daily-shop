@@ -1,8 +1,8 @@
 import React, { ReactElement, useMemo } from "react";
-import { StatusBar, View } from "react-native";
+import { StatusBar } from "react-native";
 import { IconButton } from "react-native-paper";
-import { useNavigation } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useNavigation } from "@react-navigation/native";
 // screens (auth flow)
 import Accounts from "@/screens/accounts";
 import LoginWebView from "@/components/web-view/web-view-login";
@@ -25,27 +25,11 @@ import { RootStackParamList } from "@/types/router/navigation";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const AuthStack = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Accounts" component={Accounts} />
-    <Stack.Screen
-      name="Login"
-      component={LoginWebView}
-      options={{ presentation: "modal", animation: "slide_from_bottom" }}
-    />
-    <Stack.Screen
-      name="Logout"
-      component={LogoutWebView}
-      options={{ presentation: "modal", animation: "slide_from_bottom" }}
-    />
-  </Stack.Navigator>
-);
-
-const AppStack = () => {
+const AppDetailScreens = () => {
   const navigation = useNavigation();
   const { palette } = useThemeContext();
 
-  const optionsDetailsScreen = useMemo(
+  const detailsHeader = useMemo(
     () => ({
       headerShown: true,
       header: () => (
@@ -66,21 +50,23 @@ const AppStack = () => {
   );
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Home" component={TabBar} />
-      <Stack.Screen
-        name="Plugin"
-        component={Plugin}
-        options={{ animationTypeForReplace: "pop" }}
-      />
-      <Stack.Screen name="SkinDetails" component={SkinDetails} options={optionsDetailsScreen} />
-      <Stack.Screen name="PlayerCardDetails" component={PlayerCardDetails} options={optionsDetailsScreen} />
-      <Stack.Screen name="BuddyDetails" component={BuddyDetails} options={optionsDetailsScreen} />
-      <Stack.Screen name="SprayDetails" component={SprayDetails} options={optionsDetailsScreen} />
-      <Stack.Screen name="CollectionDetails" component={CollectionDetailsScreen} options={optionsDetailsScreen} />
-    </Stack.Navigator>
+    <>
+      <Stack.Screen name="Home" component={TabBar} options={{ headerShown: false }} />
+      <Stack.Screen name="Plugin" component={Plugin} options={{ animationTypeForReplace: "pop" }} />
+      <Stack.Screen name="SkinDetails" component={SkinDetails} options={detailsHeader} />
+      <Stack.Screen name="PlayerCardDetails" component={PlayerCardDetails} options={detailsHeader} />
+      <Stack.Screen name="BuddyDetails" component={BuddyDetails} options={detailsHeader} />
+      <Stack.Screen name="SprayDetails" component={SprayDetails} options={detailsHeader} />
+      <Stack.Screen name="CollectionDetails" component={CollectionDetailsScreen} options={detailsHeader} />
+    </>
   );
 };
+
+const AuthScreens = () => (
+  <>
+    <Stack.Screen name="Accounts" component={Accounts} options={{ headerShown: false }} />
+  </>
+);
 
 const Router = (): ReactElement => {
   const { palette, isDark } = useThemeContext();
@@ -92,13 +78,22 @@ const Router = (): ReactElement => {
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor={palette.background}
       />
-      {state === "initializing" ? (
-        <View style={{ flex: 1, backgroundColor: palette.background }} />
-      ) : state === "authenticated" ? (
-        <AppStack />
-      ) : (
-        <AuthStack />
-      )}
+
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Group screenOptions={{ presentation: "modal", animation: "slide_from_bottom" }}>
+          <Stack.Screen name="Login" component={LoginWebView} />
+          <Stack.Screen name="Logout" component={LogoutWebView} />
+        </Stack.Group>
+
+        {state === "initializing" ? (
+          // Minimal placeholder to keep hooks order stable while bootstrapping
+          <Stack.Screen name="Accounts" component={Accounts} />
+        ) : state === "authenticated" ? (
+          <Stack.Group>{AppDetailScreens()}</Stack.Group>
+        ) : (
+          <Stack.Group>{AuthScreens()}</Stack.Group>
+        )}
+      </Stack.Navigator>
     </>
   );
 };
