@@ -1,10 +1,8 @@
 import { StatusBar } from "react-native";
-import React, { ReactElement } from "react";
+import React, { ReactElement, useMemo } from "react";
 import { IconButton } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-// api
-import { useGetThemeByIdQuery } from "@/api/rtk-valorant-api";
 // components
 import LogoutWebView from "@/components/web-view/web-view-logout";
 import LoginWebView from "@/components/web-view/web-view-login";
@@ -28,12 +26,15 @@ import { RootStackParamList } from "@/types/router/navigation";
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const Router = (): ReactElement | null => {
-  const { isLoading: isLoadingTheme } = useGetThemeByIdQuery("");
   const { currentUser, isInitialized } = useAuthContext();
   const { palette, isDark } = useThemeContext();
   const navigation = useNavigation();
 
-  if (!isInitialized || isLoadingTheme) return null;
+  // While auth bootstraps, avoid mounting the navigator to prevent wrong initialRoute
+  if (!isInitialized) return null;
+
+  // Decide initial route at the moment we first mount the navigator
+  const initialRouteName = useMemo(() => (currentUser ? "Home" : "Accounts"), [currentUser]);
 
   const optionsDetailsScreen = {
     headerShown: true,
@@ -58,12 +59,21 @@ const Router = (): ReactElement | null => {
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor={palette.background}
       />
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Accounts">
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
+        <Stack.Screen
+          name="Login"
+          component={LoginWebView}
+          options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        />
+        <Stack.Screen
+          name="Logout"
+          component={LogoutWebView}
+          options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        />
+
         {currentUser == null ? (
           <>
             <Stack.Screen name="Accounts" component={Accounts} />
-            <Stack.Screen name="Login" component={LoginWebView} />
-            <Stack.Screen name="Logout" component={LogoutWebView} />
           </>
         ) : (
           <>
