@@ -1,5 +1,5 @@
-import { FlatList } from "react-native";
 import React, { useCallback, useState } from "react";
+import { FlatList } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 // contexts
@@ -14,60 +14,61 @@ import user from "@/utils/users";
 import secureStore from "@/utils/secure-store";
 
 const UserList = () => {
+  const [users, setUsers] = useState<IUsersData>({});
+  const { selectAccount } = useAuthContext();
+  const navigation = useNavigation<NavigationProp>();
 
-    const [users, setUsers] = useState<IUsersData>({});
+  const handleLogout = useCallback(
+    (username: string) => navigation.navigate("Logout", { username }),
+    [navigation]
+  );
 
-    const { login } = useAuthContext();
+  const handleSelect = useCallback(
+    async (username: string) => {
+      // Persist selection for downstream providers (UserProvider uses it)
+      await AsyncStorage.setItem("current_user", username);
 
-    const navigate = useNavigation<NavigationProp>();
+      // Attempt silent reuse; if tokens are missing/invalid, we'll open Login
+      const result = await selectAccount(username);
+      if (result.needsInteractive) {
+        navigation.navigate("Login");
+      }
+    },
+    [navigation, selectAccount]
+  );
 
-    const handleLogout = useCallback((username: string) => navigate.navigate("Logout", { username }), [navigate]);
+  const handleRelogin = useCallback(() => navigation.navigate("Login"), [navigation]);
 
-    const handleLogin = useCallback(async (username: string) => {
-        await AsyncStorage.setItem("current_user", username);
+  useFocusEffect(
+    useCallback(() => {
+      setUsers({});
+      user.getAllUsers().then((data) => setUsers(data));
+      // proactively clear transient secure tokens so reuse relies on per-user storage
+      // (keeps flows deterministic between accounts)
+      secureStore.removeItem("access_token").catch(() => {});
+      secureStore.removeItem("id_token").catch(() => {});
+    }, [])
+  );
 
-        // Get entitlement token and the id token
-        const access_token = await user.getUserInfo("access_token");
-        const id_token = await user.getUserInfo("id_token");
-
-        if (typeof access_token != "string" || typeof id_token != "string") {
-            return;
-        }
-
-        await secureStore.setItem("access_token", access_token);
-        await secureStore.setItem("id_token", id_token);
-        await login();
-    }, [navigate]);
-
-    const handleRelogin = useCallback(() => navigate.navigate("Login"), [navigate]);
-
-    useFocusEffect(
-        useCallback(() => {
-            setUsers({});
-            user.getAllUsers().then((users: IUsersData) => {
-                setUsers(users);
-            });
-        }, []),
-    );
-
-    return (
-        <FlatList
-            data={Object.keys(users)}
-            style={{ flex: 2, padding: 16, gap: 16, marginBottom: 16 }}
-            contentContainerStyle={{ gap: 16, paddingBottom: 16 }}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item, index }) => (
-                <UserItem
-                    key={index}
-                    user={users[item]}
-                    index={index}
-                    handleLogin={() => handleLogin(item)}
-                    handleLogout={() => handleLogout(item)}
-                    handleRelogin={handleRelogin}
-                />
-            )}
+  return (
+    <FlatList
+      data={Object.keys(users)}
+      style={{ flex: 2, padding: 16, gap: 16, marginBottom: 16 }}
+      contentContainerStyle={{ gap: 16, paddingBottom: 16 }}
+      showsVerticalScrollIndicator={false}
+      keyExtractor={(k) => k}
+      renderItem={({ item, index }) => (
+        <UserItem
+          key={item}
+          user={users[item]}
+          index={index}
+          handleLogin={() => handleSelect(item)}
+          handleLogout={() => handleLogout(item)}
+          handleRelogin={handleRelogin}
         />
-    );
+      )}
+    />
+  );
 };
 
 export default React.memo(UserList);
