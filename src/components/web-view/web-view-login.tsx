@@ -32,31 +32,31 @@ const LoginWebView = () => {
     setShownSignIn(false);
   }, []);
 
-  const parseTokenFromUrl = useCallback(
-    async (url: string) => {
-      try {
-        if (url.includes("access_token") && url.includes("id_token")) {
-          const searchParams = new URLSearchParams(new URL(url).hash.slice(1));
-          const access_token = searchParams.get("access_token");
-          const id_token = searchParams.get("id_token");
-
-          if (access_token && id_token) {
-            setLoading(true);
-            // Store tokens securely; do not log them
-            await secureStore.setItem("access_token", access_token);
-            await secureStore.setItem("id_token", id_token);
-
-            setModalVisible(false);
-            await login();
-            setLoading(false);
-          }
-        }
-      } catch {
-        // Swallow errors silently to avoid printing sensitive payloads
+  const parseTokenFromUrl = async (url: string) => {
+    try {
+      // Some WebViews may emit about:blank or odd intermediary URLs – guard early
+      if (!url || typeof url !== "string" || !url.includes("#")) return;
+  
+      // The Riot flow puts tokens in the hash fragment
+      const hash = url.split("#")[1];
+      if (!hash) return;
+  
+      const params = new URLSearchParams(hash);
+      const access_token = params.get("access_token");
+      const id_token = params.get("id_token");
+  
+      if (access_token && id_token) {
+        setLoading(true);
+        await secureStore.setItem("access_token", access_token);
+        await secureStore.setItem("id_token", id_token);
+        setModalVisible(false);
+        await login();
+        setLoading(false);
       }
-    },
-    [login]
-  );
+    } catch {
+      // Silent fail to avoid noisy/native parse errors that can include sensitive data
+    }
+  };
 
   const handleNavigationStateChange = useCallback(
     async (event: WebViewNavigation) => {
