@@ -1,16 +1,13 @@
-import { StatusBar, View } from "react-native";
 import React, { ReactElement, useMemo } from "react";
+import { StatusBar, View } from "react-native";
 import { IconButton } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-// components
-import LogoutWebView from "@/components/web-view/web-view-logout";
-import LoginWebView from "@/components/web-view/web-view-login";
-// contexts
-import useAuthContext from "@/contexts/hook/use-auth-context";
-import useThemeContext from "@/contexts/hook/use-theme-context";
-// screens
+// screens (auth flow)
 import Accounts from "@/screens/accounts";
+import LoginWebView from "@/components/web-view/web-view-login";
+import LogoutWebView from "@/components/web-view/web-view-logout";
+// screens (app flow)
 import Plugin from "@/screens/plugin/plugin";
 import SkinDetails from "@/screens/offer-details/skin-details";
 import BuddyDetails from "@/screens/offer-details/buddy-details";
@@ -18,22 +15,35 @@ import SprayDetails from "@/screens/offer-details/spray-details";
 import PlayerCardDetails from "@/screens/offer-details/player-card-details";
 import CollectionDetailsScreen from "@/screens/profile/collection/collection-details-screen";
 // routes
-import TabHeader from "@/routes/navigation/tab-header";
 import TabBar from "@/routes/navigation/tab-bar";
+import TabHeader from "@/routes/navigation/tab-header";
+// contexts
+import useAuthContext from "@/contexts/hook/use-auth-context";
+import useThemeContext from "@/contexts/hook/use-theme-context";
 // types
 import { RootStackParamList } from "@/types/router/navigation";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const Router = (): ReactElement | null => {
-  const { currentUser, isInitialized } = useAuthContext();
-  const { palette, isDark } = useThemeContext();
-  const navigation = useNavigation();
+const AuthStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="Accounts" component={Accounts} />
+    <Stack.Screen
+      name="Login"
+      component={LoginWebView}
+      options={{ presentation: "modal", animation: "slide_from_bottom" }}
+    />
+    <Stack.Screen
+      name="Logout"
+      component={LogoutWebView}
+      options={{ presentation: "modal", animation: "slide_from_bottom" }}
+    />
+  </Stack.Navigator>
+);
 
-  const initialRouteName = useMemo(
-    () => (currentUser ? "Home" : "Accounts"),
-    [currentUser]
-  );
+const AppStack = () => {
+  const navigation = useNavigation();
+  const { palette } = useThemeContext();
 
   const optionsDetailsScreen = useMemo(
     () => ({
@@ -55,18 +65,26 @@ const Router = (): ReactElement | null => {
     [navigation, palette.text]
   );
 
-  // If auth not initialized yet, render a tiny placeholder (after hooks)
-  if (!isInitialized) {
-    return (
-      <>
-        <StatusBar
-          barStyle={isDark ? "light-content" : "dark-content"}
-          backgroundColor={palette.background}
-        />
-        <View style={{ flex: 1, backgroundColor: palette.background }} />
-      </>
-    );
-  }
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Home" component={TabBar} />
+      <Stack.Screen
+        name="Plugin"
+        component={Plugin}
+        options={{ animationTypeForReplace: "pop" }}
+      />
+      <Stack.Screen name="SkinDetails" component={SkinDetails} options={optionsDetailsScreen} />
+      <Stack.Screen name="PlayerCardDetails" component={PlayerCardDetails} options={optionsDetailsScreen} />
+      <Stack.Screen name="BuddyDetails" component={BuddyDetails} options={optionsDetailsScreen} />
+      <Stack.Screen name="SprayDetails" component={SprayDetails} options={optionsDetailsScreen} />
+      <Stack.Screen name="CollectionDetails" component={CollectionDetailsScreen} options={optionsDetailsScreen} />
+    </Stack.Navigator>
+  );
+};
+
+const Router = (): ReactElement => {
+  const { palette, isDark } = useThemeContext();
+  const { state } = useAuthContext();
 
   return (
     <>
@@ -74,32 +92,13 @@ const Router = (): ReactElement | null => {
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor={palette.background}
       />
-      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={initialRouteName}>
-        <Stack.Screen
-          name="Login"
-          component={LoginWebView}
-          options={{ presentation: "modal", animation: "slide_from_bottom" }}
-        />
-        <Stack.Screen
-          name="Logout"
-          component={LogoutWebView}
-          options={{ presentation: "modal", animation: "slide_from_bottom" }}
-        />
-
-        {currentUser == null ? (
-          <Stack.Screen name="Accounts" component={Accounts} />
-        ) : (
-          <>
-            <Stack.Screen name="Home" component={TabBar} />
-            <Stack.Screen name="Plugin" component={Plugin} options={{ animationTypeForReplace: "pop" }} />
-            <Stack.Screen name="SkinDetails" component={SkinDetails} options={optionsDetailsScreen} />
-            <Stack.Screen name="PlayerCardDetails" component={PlayerCardDetails} options={optionsDetailsScreen} />
-            <Stack.Screen name="BuddyDetails" component={BuddyDetails} options={optionsDetailsScreen} />
-            <Stack.Screen name="SprayDetails" component={SprayDetails} options={optionsDetailsScreen} />
-            <Stack.Screen name="CollectionDetails" component={CollectionDetailsScreen} options={optionsDetailsScreen} />
-          </>
-        )}
-      </Stack.Navigator>
+      {state === "initializing" ? (
+        <View style={{ flex: 1, backgroundColor: palette.background }} />
+      ) : state === "authenticated" ? (
+        <AppStack />
+      ) : (
+        <AuthStack />
+      )}
     </>
   );
 };
