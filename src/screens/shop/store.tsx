@@ -11,72 +11,73 @@ import DailyShop from "@/screens/shop/daily-shop";
 import NightMarket from "@/screens/shop/night-market";
 import PluginStore from "@/screens/shop/plugin-store";
 import AccessoryStore from "@/screens/shop/accessory-store";
+// utils
+import { hexToRgba } from "@/utils/color";
 
 const Tab = createMaterialTopTabNavigator();
 
 const Store = () => {
+  const { palette } = useThemeContext();
+  const { plugins } = usePluginContext();
+  const { nightMarket } = useNightMarketContext();
 
-    const { colors } = useThemeContext();
-
-    const { plugins } = usePluginContext();
-
-    const { nightMarket } = useNightMarketContext();
-
-    const tabNavigatorOptions = useMemo(() => ({
-        initialRouteName: "Daily shop",
-        screenOptions: {
-            tabBarGap: 8,
-            tabBarItemStyle: styles.tabBarItem,
-            tabBarStyle: styles.tabBar,
-            tabBarLabelStyle: styles.tabBarLabel,
-            tabBarScrollEnabled: true,
-            tabBarActiveTintColor: colors.text,
-            tabBarInactiveTintColor: "#7B7D80",
-            tabBarIndicatorStyle: {
-                backgroundColor: colors.primary,
-                borderTopLeftRadius: 50,
-                borderTopRightRadius: 50,
-            },
-            tabBarIndicatorContainerStyle: {
-                marginLeft: 8,
-            },
-            lazy: true,  // Enable lazy loading
+  const tabNavigatorOptions = useMemo(
+    () => ({
+      initialRouteName: "Daily shop",
+      screenOptions: {
+        tabBarGap: 8,
+        tabBarItemStyle: styles.tabBarItem,
+        tabBarStyle: [styles.tabBar, { backgroundColor: palette.background }],
+        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarScrollEnabled: true,
+        tabBarActiveTintColor: palette.text,
+        tabBarInactiveTintColor: hexToRgba(palette.text, 0.6),
+        tabBarIndicatorStyle: {
+          backgroundColor: palette.primary,
+          borderTopLeftRadius: 50,
+          borderTopRightRadius: 50,
         },
-    }), [colors]);
+        tabBarIndicatorContainerStyle: {
+          marginLeft: 8,
+        },
+        lazy: true, // Enable lazy loading
+      },
+    }),
+    [palette.background, palette.text, palette.primary]
+  );
 
-    return (
-        <View style={styles.container}>
-            <Tab.Navigator {...tabNavigatorOptions}>
-                <Tab.Screen name="Bundles" component={BundleView} />
-                <Tab.Screen name="Daily shop" component={DailyShop} />
-                <Tab.Screen name="Accessory shop" component={AccessoryStore} />
-                {nightMarket?.BonusStoreOffers && <Tab.Screen name="Night market" component={NightMarket} />}
-                {plugins && <Tab.Screen name="E-sport" component={PluginStore} />}
-            </Tab.Navigator>
-        </View>
-    );
+  return (
+    <View style={styles.container}>
+      <Tab.Navigator {...tabNavigatorOptions}>
+        <Tab.Screen name="Bundles" component={BundleView} />
+        <Tab.Screen name="Daily shop" component={DailyShop} />
+        <Tab.Screen name="Accessory shop" component={AccessoryStore} />
+        {nightMarket?.BonusStoreOffers && <Tab.Screen name="Night market" component={NightMarket} />}
+        {plugins && <Tab.Screen name="E-sport" component={PluginStore} />}
+      </Tab.Navigator>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    tabBarItem: {
-        width: "auto",
-        minWidth: 110,
-        paddingHorizontal: 4,
-    },
-    tabBar: {
-        backgroundColor: "#1B1D21",
-        paddingHorizontal: 8,
-    },
-    tabBarLabel: {
-        fontSize: 16,
-        letterSpacing: 0.5,
-        lineHeight: 24,
-        marginHorizontal: 0,
-        fontFamily: "Nota",
-    },
+  container: {
+    flex: 1,
+  },
+  tabBarItem: {
+    width: "auto",
+    minWidth: 110,
+    paddingHorizontal: 4,
+  },
+  tabBar: {
+    paddingHorizontal: 8,
+  },
+  tabBarLabel: {
+    fontSize: 16,
+    letterSpacing: 0.5,
+    lineHeight: 24,
+    marginHorizontal: 0,
+    fontFamily: "Nota",
+  },
 });
 
 export default React.memo(Store);
