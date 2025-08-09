@@ -13,11 +13,16 @@ import { hexToRgba } from "@/utils/color";
 
 const Accounts = (): ReactElement => {
   const { palette } = useThemeContext();
-  const navigate = useNavigation<NavigationProp>();
+  const navigation = useNavigation<NavigationProp>();
 
   const handleAddAccount = useCallback(() => {
-    navigate.navigate("Login");
-  }, [navigate]);
+    try {
+      navigation.navigate("Login");
+    } catch {
+      // Fallback if this screen is in a nested navigator someday
+      navigation.getParent?.()?.navigate?.("Login" as never);
+    }
+  }, [navigation]);
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
