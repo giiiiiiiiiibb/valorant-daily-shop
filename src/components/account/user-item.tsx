@@ -25,7 +25,6 @@ type Props = {
 
 const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Props): ReactElement => {
   const { palette } = useThemeContext();
-  const { logoutUser } = useAuthContext();
   const [loading, setLoading] = useState(false);
   const username = `${user["game_name"]}#${user["tag_line"]}`;
 
@@ -39,10 +38,6 @@ const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Pro
       setLoading(false);
     }
   }, [handleLogin, handleRelogin]);
-
-  const logoutThisAccount = useCallback(async () => {
-    await logoutUser(username);
-  }, [logoutUser, username]);
 
   return (
     <View key={index} style={[{ backgroundColor: palette.card }, styles.userContainer]}>
@@ -88,13 +83,6 @@ const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Pro
         >
           <SvgLogout color={palette.primary} />
         </TouchableRipple>
-        <Button
-          text="Remove"
-          onPress={logoutThisAccount}
-          underlayColor={hexToRgba(palette.text, 0.08)}
-          backgroundColor={palette.card}
-          textStyle={{ opacity: 0.85 }}
-        />
       </View>
     </View>
   );
