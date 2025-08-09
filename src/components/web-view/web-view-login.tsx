@@ -1,189 +1,138 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
-import { Modal, StyleSheet, View } from "react-native";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { WebViewNavigation } from "react-native-webview/lib/WebViewTypes";
+import type { WebViewNavigation } from "react-native-webview/lib/WebViewTypes";
+import { useNavigation } from "@react-navigation/native";
 // components
 import Loading from "@/components/loading/loading";
 // contexts
-import useAuthContext from "@/contexts/hook/use-auth-context";
 import useThemeContext from "@/contexts/hook/use-theme-context";
+import useAuthContext from "@/contexts/hook/use-auth-context";
 // utils
 import secureStore from "@/utils/secure-store";
 import { getWebViewState, saveWebViewState, WebViewState } from "@/utils/web-view-state";
 
-const initialUrl = "https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid";
+const INITIAL_URL = "https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid";
 
 const LoginWebView = () => {
-  const { login } = useAuthContext();
+  const navigation = useNavigation();
   const { palette } = useThemeContext();
-  const webViewRef = useRef<WebView | null>(null);
+  const { loginInteractive } = useAuthContext();
 
-  const [shownSignIn, setShownSignIn] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const webRef = useRef<WebView | null>(null);
   const [savedState, setSavedState] = useState<WebViewState | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const cleanupWebView = useCallback(() => {
-    try {
-      webViewRef.current?.stopLoading?.();
-    } catch {
-      // ignore: avoid leaking errors/tokens
-    }
-    setShownSignIn(false);
-  }, []);
-
-  const parseTokenFromUrl = async (url: string) => {
-    try {
-      // Some WebViews may emit about:blank or odd intermediary URLs – guard early
-      if (!url || typeof url !== "string" || !url.includes("#")) return;
-  
-      // The Riot flow puts tokens in the hash fragment
-      const hash = url.split("#")[1];
-      if (!hash) return;
-  
-      const params = new URLSearchParams(hash);
-      const access_token = params.get("access_token");
-      const id_token = params.get("id_token");
-  
-      if (access_token && id_token) {
-        setLoading(true);
-        await secureStore.setItem("access_token", access_token);
-        await secureStore.setItem("id_token", id_token);
-        setModalVisible(false);
-        await login();
-        setLoading(false);
-      }
-    } catch {
-      // Silent fail to avoid noisy/native parse errors that can include sensitive data
-    }
-  };
-
-  const handleNavigationStateChange = useCallback(
-    async (event: WebViewNavigation) => {
-      const { url } = event;
-
-      await saveWebViewState({ url, timestamp: Date.now() });
-
-      if (url.startsWith("https://authenticate.riotgames.com") && !shownSignIn) {
-        setShownSignIn(true);
-        setModalVisible(true);
-      }
-
-      await parseTokenFromUrl(url);
-    },
-    [shownSignIn, parseTokenFromUrl]
+  const injectCookieClear = useMemo(
+    () => `
+      (function() {
+        try {
+          document.cookie.split(";").forEach(function(c) {
+            document.cookie = c.replace(/^ +/, "")
+              .replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/");
+          });
+        } catch (_) {}
+      })();
+      true;
+    `,
+    []
   );
 
-  const clearWebViewData = useCallback(async () => {
-    try {
-      webViewRef.current?.clearCache?.(true);
-      webViewRef.current?.clearHistory?.();
-      webViewRef.current?.injectJavaScript?.(`
-        (function() {
-          try {
-            document.cookie.split(";").forEach(function(c) {
-              document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/");
-            });
-          } catch(_) {}
-        })();
-        true;
-      `);
+  const parseTokenFromUrl = useCallback(
+    async (url: string) => {
+      // Riot puts tokens in the hash fragment of the redirect URL
+      if (!url || !url.includes("#")) return false;
 
-      const emptyState: WebViewState = {
-        url: initialUrl,
-        timestamp: Date.now(),
-      };
-      await saveWebViewState(emptyState);
-      setSavedState(emptyState);
-      setModalVisible(false);
-      setShownSignIn(false);
-    } catch {
-      // Avoid logging raw errors to prevent leaking sensitive info
-    }
-  }, []);
+      const hash = url.split("#")[1];
+      if (!hash) return false;
 
-  // Load saved state on mount
-  useEffect(() => {
-    const loadState = async () => {
-      const state = await getWebViewState(initialUrl);
-      if (state) setSavedState(state);
-    };
-    loadState();
-  }, []);
+      const params = new URLSearchParams(hash);
+      const access = params.get("access_token");
+      const id = params.get("id_token");
+      if (!access || !id) return false;
 
-  useEffect(() => {
-    clearWebViewData();
-    return () => {
-      cleanupWebView();
-      setLoading(false);
-    };
-  }, [clearWebViewData, cleanupWebView]);
-
-  if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: palette.background }]}>
-        <View style={styles.loadingOverlay}>
-          <Loading />
-        </View>
-      </View>
-    );
-  }
-
-  const commonWebViewProps = {
-    ref: webViewRef,
-    incognito: true,
-    sharedCookiesEnabled: false,
-    thirdPartyCookiesEnabled: false,
-    source: { uri: savedState?.url || initialUrl },
-    style: shownSignIn ? styles.webView : styles.hiddenWebView,
-    onLoadStart: () => {
-      webViewRef.current?.injectJavaScript?.(`
-        (function() {
-          try {
-            document.cookie.split(";").forEach(function(c) {
-              document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date(0).toUTCString() + ";path=/");
-            });
-          } catch(_) {}
-        })();
-        true;
-      `);
+      setLoading(true);
+      try {
+        await secureStore.setItem("access_token", access);
+        await secureStore.setItem("id_token", id);
+        // Finish bootstrap (entitlements, user, balances, etc.) and flip auth state
+        await loginInteractive();
+        // Close this screen
+        // @ts-ignore
+        navigation.goBack();
+      } finally {
+        setLoading(false);
+      }
+      return true;
     },
-    onNavigationStateChange: handleNavigationStateChange,
-  } as const;
+    [loginInteractive, navigation]
+  );
+
+  const onNavChange = useCallback(
+    async (event: WebViewNavigation) => {
+      const { url } = event;
+      // Persist last visited URL (handy if the app gets backgrounded)
+      try {
+        await saveWebViewState({ url, timestamp: Date.now() });
+      } catch {
+        // ignore
+      }
+      // Attempt parse; if tokens found, we will navigate away automatically
+      await parseTokenFromUrl(url);
+    },
+    [parseTokenFromUrl]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const state = await getWebViewState(INITIAL_URL);
+        if (mounted && state) setSavedState(state);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+      try {
+        webRef.current?.stopLoading?.();
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: palette.background }]}>
-      <View style={styles.loadingOverlay}>
-        <Loading />
-      </View>
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <Loading />
+        </View>
+      )}
 
-      <Modal
-        visible={modalVisible}
-        onRequestClose={() => {
-          clearWebViewData();
-          cleanupWebView();
-        }}
-        animationType="slide"
-      >
-        <WebView {...commonWebViewProps} />
-      </Modal>
-
-      {!shownSignIn && <WebView {...commonWebViewProps} />}
+      <WebView
+        ref={webRef}
+        incognito
+        thirdPartyCookiesEnabled={false}
+        sharedCookiesEnabled={false}
+        source={{ uri: savedState?.url || INITIAL_URL }}
+        onLoadStart={() => webRef.current?.injectJavaScript?.(injectCookieClear)}
+        onNavigationStateChange={onNavChange}
+        style={styles.webView}
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  loadingOverlay: {
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    position: "absolute",
-  },
   webView: { flex: 1 },
-  hiddenWebView: { display: "none" },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });
 
 export default React.memo(LoginWebView);
