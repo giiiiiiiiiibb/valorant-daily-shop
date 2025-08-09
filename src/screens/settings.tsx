@@ -6,27 +6,27 @@ import Text from "@/components/typography/text";
 import useThemeContext from "@/contexts/hook/use-theme-context";
 
 const Settings = (): ReactElement => {
-    const { colors } = useThemeContext();
+  const { palette } = useThemeContext();
 
-    return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <Text style={styles.placeholder} variant="bodyLarge">
-                No settings available yet.
-            </Text>
-        </View>
-    );
+  return (
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <Text style={styles.placeholder} variant="bodyLarge">
+        No settings available yet.
+      </Text>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    placeholder: {
-        opacity: 0.5,
-        textAlign: "center",
-    },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  placeholder: {
+    opacity: 0.5,
+    textAlign: "center",
+  },
 });
 
 export default React.memo(Settings);
