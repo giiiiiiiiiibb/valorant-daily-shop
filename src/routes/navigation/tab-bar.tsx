@@ -1,13 +1,11 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { createMaterialBottomTabNavigator } from "react-native-paper/react-navigation";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 // components
 import SvgShop from "@/components/icon/shop";
 import SvgUser from "@/components/icon/user";
 import SvgUsers from "@/components/icon/users";
 import SvgSetting from "@/components/icon/setting";
 // contexts
-import useAuthContext from "@/contexts/hook/use-auth-context";
 import useThemeContext from "@/contexts/hook/use-theme-context";
 // routes
 import TabHeader from "@/routes/navigation/tab-header";
@@ -16,15 +14,17 @@ import StoreStackScreen from "@/routes/store-stack-screen";
 import ProfileScreen from "@/screens/profile/profile-screen";
 import AccountsScreen from "@/screens/accounts";
 import SettingsScreen from "@/screens/settings";
-// types
-import { EAuthContextType } from "@/types/context/auth";
+// utils
+import { hexToRgba } from "@/utils/color";
 
 const BottomNavigation = createMaterialBottomTabNavigator();
 
 const TabBar = () => {
   const { palette } = useThemeContext();
-  const { dispatch } = useAuthContext();
   const [activeTab, setActiveTab] = useState("Shops");
+
+  // Derive inactive color from the theme's text color (reduced opacity)
+  const inactiveColor = useMemo(() => hexToRgba(palette.text, 0.6), [palette.text]);
 
   return (
     <>
@@ -32,7 +32,7 @@ const TabBar = () => {
       <BottomNavigation.Navigator
         sceneAnimationEnabled
         initialRouteName="Shops"
-        inactiveColor="#7A7B7E"
+        inactiveColor={inactiveColor}
         activeColor={palette.primary}
         sceneAnimationType="shifting"
         activeIndicatorStyle={{ backgroundColor: palette.card }}
