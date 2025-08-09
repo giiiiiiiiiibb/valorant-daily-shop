@@ -9,37 +9,32 @@ import usePluginContext from "@/contexts/hook/use-plugin-context";
 import PluginItem from "@/sections/shop/plugin-store/plugin-item";
 
 const PluginStore = () => {
+  const { palette } = useThemeContext();
+  const { plugins } = usePluginContext();
 
-    const { colors } = useThemeContext();
+  if (!plugins) return <Loading />;
 
-    const { plugins } = usePluginContext();
+  const renderPlugins = useMemo(
+    () => plugins.map((plugin, index) => <PluginItem plugin={plugin} key={index} />),
+    [plugins]
+  );
 
-    if (!plugins) return <Loading />;
-
-    const renderPlugins = useMemo(() => (
-        plugins.map((plugin, index) => (
-            <PluginItem plugin={plugin} key={index} />
-        ))
-    ), [plugins]);
-
-    return (
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <View style={styles.pluginList}>
-                {renderPlugins}
-            </View>
-        </View>
-    );
+  return (
+    <View style={[styles.container, { backgroundColor: palette.background }]}>
+      <View style={styles.pluginList}>{renderPlugins}</View>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-    },
-    pluginList: {
-        flex: 1,
-    },
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  pluginList: {
+    flex: 1,
+  },
 });
 
 export default React.memo(PluginStore);
