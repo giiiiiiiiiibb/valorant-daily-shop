@@ -1,13 +1,13 @@
 import React, { ReactElement, useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
-import { DefaultTheme, NavigationContainer, Theme } from "@react-navigation/native";
+import { NavigationContainer } from "@react-navigation/native";
 import { Provider as ReduxProvider } from "react-redux";
 import * as SplashScreen from "expo-splash-screen";
 import { useFonts } from "expo-font";
 import "react-native-reanimated";
 // controllers
 import { store } from "@/controllers/store";
-// contexts (providers)
+// providers
 import ThemeProvider from "@/contexts/theme/theme-provider";
 import AuthProvider from "@/contexts/auth/auth-provider";
 import UserProvider from "@/contexts/user/user-provider";
@@ -17,8 +17,9 @@ import AccessoryStoreProvider from "@/contexts/accessory-store/accessory-store-p
 import NightMarketProvider from "@/contexts/night-market/night-market-provider";
 import PluginProvider from "@/contexts/plugin/plugin-provider";
 import ProfileProvider from "@/contexts/profile/profile-provider";
-// contexts (hooks)
+// hooks
 import useAuthContext from "@/contexts/hook/use-auth-context";
+import useThemeContext from "@/contexts/hook/use-theme-context";
 // routes
 import Router from "@/routes/index";
 
@@ -35,15 +36,6 @@ const APP_FONTS = {
   Vandchrome: require("./assets/fonts/vanchrome-regular.otf"),
   Nota: require("./assets/fonts/nota-bold.ttf"),
 } as const;
-
-/** App theme (extendable without scattering defaults) */
-const APP_THEME: Theme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: "#1B1D21",
-  },
-};
 
 /**
  * Lightweight render error boundary to prevent full app crashes.
@@ -100,18 +92,62 @@ function AppProviders({ children }: { children: React.ReactNode }): ReactElement
 }
 
 /**
+ * Root that has access to ThemeContext (NavigationContainer needs themed colors).
+ * This component also builds a themed font-fallback UI.
+ */
+function ThemedRoot({
+  fontsReady,
+  fontError,
+}: {
+  fontsReady: boolean;
+  fontError: boolean;
+}): ReactElement {
+  const { navTheme, palette, isReady: themeReady } = useThemeContext();
+
+  // Themed, minimal fallback if custom fonts fail to load (we still run with system fonts)
+  const FontFallback = useMemo(
+    () => (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: palette.background,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+        }}
+      >
+        <Text style={{ color: palette.text, fontSize: 16, textAlign: "center" }}>Loading basic UI…</Text>
+      </View>
+    ),
+    [palette.background, palette.text]
+  );
+
+  return (
+    <NavigationContainer theme={navTheme}>
+      {fontError ? <>{FontFallback}</> : <AppContent fontsReady={fontsReady} themeReady={themeReady} />}
+    </NavigationContainer>
+  );
+}
+
+/**
  * Separate component that can access AuthContext (since it's rendered within providers).
  * Controls when to hide the splash screen based on readiness signals.
  */
-function AppContent({ fontsReady }: { fontsReady: boolean }): ReactElement {
+function AppContent({
+  fontsReady,
+  themeReady,
+}: {
+  fontsReady: boolean;
+  themeReady: boolean;
+}): ReactElement {
   const { isInitialized } = useAuthContext();
 
-  // Hide the splash screen once critical bootstrapping is complete.
+  // Hide the splash screen once critical bootstrapping is complete (fonts + auth + theme).
   useEffect(() => {
-    if (fontsReady && isInitialized) {
+    if (fontsReady && isInitialized && themeReady) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [fontsReady, isInitialized]);
+  }, [fontsReady, isInitialized, themeReady]);
 
   // Safety net: never keep users stuck behind splash if a signal fails to flip.
   useEffect(() => {
@@ -128,27 +164,13 @@ function AppContent({ fontsReady }: { fontsReady: boolean }): ReactElement {
 export default function App(): ReactElement {
   const [fontsLoaded, fontError] = useFonts(APP_FONTS);
 
-  // Memoize a minimal, non-sensitive fallback in case font loading fails.
-  const FontFallback = useMemo(
-    () => (
-      <View style={{ flex: 1, backgroundColor: "#1B1D21", alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <Text style={{ color: "#fff", fontSize: 16, textAlign: "center" }}>
-          Loading basic UI…
-        </Text>
-      </View>
-    ),
-    []
-  );
-
-  // We always mount navigation + providers; font readiness only affects splash and typography.
+  // We always mount providers; font readiness only affects splash & typography.
   // If fonts fail to load, we still run the app (with default system fonts).
   return (
-    <NavigationContainer theme={APP_THEME}>
-      <SafeErrorBoundary>
-        <AppProviders>
-          {fontError ? FontFallback : <AppContent fontsReady={!!fontsLoaded} />}
-        </AppProviders>
-      </SafeErrorBoundary>
-    </NavigationContainer>
+    <SafeErrorBoundary>
+      <AppProviders>
+        <ThemedRoot fontsReady={!!fontsLoaded} fontError={!!fontError} />
+      </AppProviders>
+    </SafeErrorBoundary>
   );
 }
