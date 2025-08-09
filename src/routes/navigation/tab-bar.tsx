@@ -23,7 +23,6 @@ const TabBar = () => {
   const { palette } = useThemeContext();
   const [activeTab, setActiveTab] = useState("Shops");
 
-  // Derive inactive color from the theme's text color (reduced opacity)
   const inactiveColor = useMemo(() => hexToRgba(palette.text, 0.6), [palette.text]);
 
   return (
