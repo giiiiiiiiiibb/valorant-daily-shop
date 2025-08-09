@@ -1,12 +1,13 @@
-import { TouchableRipple } from "react-native-paper";
 import React, { ReactElement, useState, useCallback } from "react";
 import { Image, StyleSheet, View } from "react-native";
+import { TouchableRipple } from "react-native-paper";
 // components
 import Text from "@/components/typography/text";
 import Button from "@/components/button/button";
 import SvgLogout from "@/components/icon/logout";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
+import useAuthContext from "@/contexts/hook/use-auth-context";
 // types
 import { IUserData } from "@/types/context/user";
 // utils
@@ -24,19 +25,24 @@ type Props = {
 
 const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Props): ReactElement => {
   const { palette } = useThemeContext();
+  const { logoutUser } = useAuthContext();
   const [loading, setLoading] = useState(false);
+  const username = `${user["game_name"]}#${user["tag_line"]}`;
 
   const login = useCallback(async () => {
     setLoading(true);
     try {
       await handleLogin();
     } catch {
-      // Avoid logging raw errors that may contain sensitive info
       handleRelogin();
     } finally {
       setLoading(false);
     }
   }, [handleLogin, handleRelogin]);
+
+  const logoutThisAccount = useCallback(async () => {
+    await logoutUser(username);
+  }, [logoutUser, username]);
 
   return (
     <View key={index} style={[{ backgroundColor: palette.card }, styles.userContainer]}>
@@ -46,10 +52,7 @@ const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Pro
             <View style={styles.levelTextContainer}>
               <Text style={styles.levelText}>{user["level"]}</Text>
             </View>
-            <Image
-              style={styles.levelImage}
-              source={getLevelBorder(parseInt(user["level"] ?? "1")).levelNumberAppearance}
-            />
+            <Image style={styles.levelImage} source={getLevelBorder(parseInt(user["level"] ?? "1")).levelNumberAppearance} />
           </View>
           <Image
             style={styles.playerCardImage}
@@ -57,10 +60,9 @@ const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Pro
             resizeMode="contain"
           />
         </View>
+
         <View style={styles.infoContainer}>
-          <Text variant="headlineSmall">
-            {user["game_name"]}#{user["tag_line"]}
-          </Text>
+          <Text variant="headlineSmall">{username}</Text>
           <View style={styles.rankContainer}>
             <Image style={styles.rankImage} source={getCompetitiveTierIcon(user["rank"] ?? "iron")} resizeMode="contain" />
             <Text style={styles.rankText} variant="titleMedium">
@@ -69,6 +71,7 @@ const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Pro
           </View>
         </View>
       </View>
+
       <View style={{ flexDirection: "row", gap: 16 }}>
         <Button
           text="Select"
@@ -85,28 +88,22 @@ const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Pro
         >
           <SvgLogout color={palette.primary} />
         </TouchableRipple>
+        <Button
+          text="Remove"
+          onPress={logoutThisAccount}
+          underlayColor={hexToRgba(palette.text, 0.08)}
+          backgroundColor={palette.card}
+          textStyle={{ opacity: 0.85 }}
+        />
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  userContainer: {
-    gap: 16,
-    padding: 16,
-    paddingTop: 24,
-    borderRadius: 16,
-  },
-  innerContainer: {
-    width: "100%",
-    alignItems: "center",
-    borderRadius: 32,
-    flexDirection: "row",
-  },
-  playerInfoContainer: {
-    width: 96,
-    position: "relative",
-  },
+  userContainer: { gap: 16, padding: 16, paddingTop: 24, borderRadius: 16 },
+  innerContainer: { width: "100%", alignItems: "center", borderRadius: 32, flexDirection: "row" },
+  playerInfoContainer: { width: 96, position: "relative" },
   levelContainer: {
     top: -12,
     left: 0,
@@ -116,43 +113,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  levelTextContainer: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  levelText: {
-    zIndex: 1,
-    textAlign: "center",
-  },
-  levelImage: {
-    width: 57,
-    height: 24,
-  },
-  playerCardImage: {
-    width: 96,
-    height: 96,
-    borderRadius: 16,
-  },
-  infoContainer: {
-    gap: 8,
-    padding: 16,
-  },
-  rankContainer: {
-    gap: 8,
-    alignItems: "center",
-    flexDirection: "row",
-  },
-  rankImage: {
-    height: 32,
-    width: 32,
-  },
-  rankText: {
-    opacity: 0.5,
-  },
-  title: {
-    fontFamily: "Vandchrome",
-  },
+  levelTextContainer: { position: "absolute", alignItems: "center", justifyContent: "center" },
+  levelText: { zIndex: 1, textAlign: "center" },
+  levelImage: { width: 57, height: 24 },
+  playerCardImage: { width: 96, height: 96, borderRadius: 16 },
+  infoContainer: { gap: 8, padding: 16 },
+  rankContainer: { gap: 8, alignItems: "center", flexDirection: "row" },
+  rankImage: { height: 32, width: 32 },
+  rankText: { opacity: 0.5 },
+  title: { fontFamily: "Vandchrome" },
 });
 
 export default React.memo(UserItem);
