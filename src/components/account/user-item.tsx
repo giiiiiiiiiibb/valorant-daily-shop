@@ -7,7 +7,6 @@ import Button from "@/components/button/button";
 import SvgLogout from "@/components/icon/logout";
 // contexts
 import useThemeContext from "@/contexts/hook/use-theme-context";
-import useAuthContext from "@/contexts/hook/use-auth-context";
 // types
 import { IUserData } from "@/types/context/user";
 // utils
@@ -20,10 +19,9 @@ type Props = {
   user: IUserData;
   handleLogin: () => Promise<void>;
   handleLogout: () => void;
-  handleRelogin: () => void;
 };
 
-const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Props): ReactElement => {
+const UserItem = ({ index, user, handleLogin, handleLogout }: Props): ReactElement => {
   const { palette } = useThemeContext();
   const [loading, setLoading] = useState(false);
   const username = `${user["game_name"]}#${user["tag_line"]}`;
@@ -32,12 +30,10 @@ const UserItem = ({ index, user, handleLogin, handleLogout, handleRelogin }: Pro
     setLoading(true);
     try {
       await handleLogin();
-    } catch {
-      handleRelogin();
     } finally {
       setLoading(false);
     }
-  }, [handleLogin, handleRelogin]);
+  }, [handleLogin]);
 
   return (
     <View key={index} style={[{ backgroundColor: palette.card }, styles.userContainer]}>
