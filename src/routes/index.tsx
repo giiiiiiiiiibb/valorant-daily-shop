@@ -79,7 +79,7 @@ const Router = (): ReactElement => {
         backgroundColor={palette.background}
       />
 
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName={state === "authenticated" ? "Home" : "Accounts"}>
         <Stack.Group screenOptions={{ presentation: "modal", animation: "slide_from_bottom" }}>
           <Stack.Screen name="Login" component={LoginWebView} />
           <Stack.Screen name="Logout" component={LogoutWebView} />
