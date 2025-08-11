@@ -12,394 +12,413 @@ import { PlayerLoadoutGun, PlayerLoadoutResponse } from "@/types/api/player-load
 import user from "@/utils/users";
 import secureStore from "@/utils/secure-store";
 
-// ----------------------------------------------------------------------
+// Static headers
+const X_RIOT_CLIENT_PLATFORM = "ew0KCSJwbGF0Zm9ybVR5cGUiOiAiUEMiLA0KCSJwbGF0Zm9ybU9TIjogIldpbmRvd3MiLA0KCSJwbGF0Zm9ybU9TVmVyc2lvbiI6ICIxMC4wLjE5MDQyLjEuMjU2LjY0Yml0IiwNCgkicGxhdGZvcm1DaGlwc2V0IjogIlVua25vd24iDQp9";
 
-const X_Riot_ClientPlatform = "ew0KCSJwbGF0Zm9ybVR5cGUiOiAiUEMiLA0KCSJwbGF0Zm9ybU9TIjogIldpbmRvd3MiLA0KCSJwbGF0Zm9ybU9TVmVyc2lvbiI6ICIxMC4wLjE5MDQyLjEuMjU2LjY0Yml0IiwNCgkicGxhdGZvcm1DaGlwc2V0IjogIlVua25vd24iDQp9";
+// Riot currency UUIDs
+const BALANCE_IDS = {
+  RP: "e59aa87c-4cbf-517a-5983-6e81511be9b7",
+  VP: "85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741",
+  KC: "85ca954a-41f2-ce94-9b45-8ca3dd39a00d",
+} as const;
 
-// ----------------------------------------------------------------------
-
-const requestWithHeaders = async (options: AxiosRequestConfig<any>) => {
-    try {
-        return await axios.request(options);
-    } catch (error) {
-        console.error(`Error in ${options.url}:`, error);
-        throw error;
-    }
+// Shared helpers
+/** Wrap axios request to avoid logging sensitive payloads. */
+const requestWithHeaders = async <T = any>(options: AxiosRequestConfig<any>): Promise<AxiosResponse<T>> => {
+  try {
+    return await axios.request<T>(options);
+  } catch (error: any) {
+    // Do not dump raw error; provide small, non-sensitive context.
+    const status = error?.response?.status;
+    const url = options?.url;
+    // eslint-disable-next-line no-console
+    console.warn(`[requestWithHeaders] Request failed (${status ?? "no-status"}) for ${url ?? "unknown"}`);
+    throw error;
+  }
 };
 
-// ----------------------------------------------------------------------
+/**
+ * Fetch required auth values. Returns nulls rather than falsy booleans to avoid
+ * accidental Authorization: "Bearer false".
+ */
+const readAuthContext = async () => {
+  const [accessToken, entitlementsToken, idToken, sub, pp, riotVersion] = await Promise.all([
+    secureStore.getItem("access_token"),
+    secureStore.getItem("entitlements_token"),
+    secureStore.getItem("id_token"),
+    user.getUserInfo("sub"),
+    user.getUserInfo("pp"),
+    secureStore.getItem("riot_version"),
+  ]);
+
+  return {
+    accessToken: accessToken || null,
+    entitlementsToken: entitlementsToken || null,
+    idToken: (typeof idToken === "string" && idToken) || null,
+    sub: (typeof sub === "string" && sub) || null,
+    pp: (typeof pp === "string" && pp) || null,
+    riotVersion: riotVersion || null,
+  };
+};
+
+/** Ensure auth is present before calling protected endpoints. */
+const assertAuthReady = (ctx: Awaited<ReturnType<typeof readAuthContext>>): asserts ctx is {
+  accessToken: string;
+  entitlementsToken: string;
+  idToken: string;
+  sub: string;
+  pp: string;
+  riotVersion: string;
+} => {
+  if (!ctx.accessToken || !ctx.idToken) throw new Error("AUTH_MISSING_TOKEN");
+  if (!ctx.sub) throw new Error("AUTH_MISSING_SUB");
+  if (!ctx.pp) throw new Error("AUTH_MISSING_REGION");
+  if (!ctx.entitlementsToken) throw new Error("AUTH_MISSING_ENTITLEMENTS");
+  if (!ctx.riotVersion) throw new Error("AUTH_MISSING_VERSION");
+};
 
 const valorantProvider = {
-    getUserInfo: async () => {
-        const accessToken = await secureStore.getItem("access_token");
-        const options = {
-            method: "GET",
-            url: "https://auth.riotgames.com/userinfo",
-            headers: { Authorization: `Bearer ${accessToken}` },
-        };
+  /** Reads userinfo and persists the core identity/state into per-user storage. */
+  getUserInfo: async () => {
+    const accessToken = await secureStore.getItem("access_token");
+    if (!accessToken) throw new Error("AUTH_MISSING_TOKEN");
 
-        const response: AxiosResponse<PlayerInfoResponse> = await requestWithHeaders(options);
+    const options: AxiosRequestConfig = {
+      method: "GET",
+      url: "https://auth.riotgames.com/userinfo",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    };
 
-        // Save the user's game name and tag line to the device's storage
-        if (response.data.acct.game_name && response.data.acct.tag_line && response.data.sub) {
-            await AsyncStorage.setItem("current_user", response.data.acct.game_name + "#" + response.data.acct.tag_line);
-            await user.setUserInfo("game_name", response.data.acct.game_name);
-            await user.setUserInfo("tag_line", response.data.acct.tag_line);
-            await user.setUserInfo("sub", response.data.sub);
+    const response: AxiosResponse<PlayerInfoResponse> = await requestWithHeaders(options);
 
-            const accessToken = await secureStore.getItem("access_token");
-            if (accessToken) {
-                await user.setUserInfo("access_token", accessToken);
-            }
+    const { acct, sub } = response.data || {};
+    if (acct?.game_name && acct?.tag_line && sub) {
+      const currentUser = `${acct.game_name}#${acct.tag_line}`;
+      await AsyncStorage.setItem("current_user", currentUser);
 
-            const idToken = await secureStore.getItem("id_token");
-            if (idToken) {
-                await user.setUserInfo("id_token", idToken);
-            }
+      await user.setUserInfo("game_name", acct.game_name);
+      await user.setUserInfo("tag_line", acct.tag_line);
+      await user.setUserInfo("sub", sub);
 
-            const entitlementsToken = await secureStore.getItem("entitlements_token");
-            if (entitlementsToken) {
-                await user.setUserInfo("entitlements_token", entitlementsToken);
-            }
-        }
-    },
+      // Persist tokens per user for future silent re-use. Never log them.
+      const [a, i, e] = await Promise.all([
+        secureStore.getItem("access_token"),
+        secureStore.getItem("id_token"),
+        secureStore.getItem("entitlements_token"),
+      ]);
+      if (a) await user.setUserInfo("access_token", a);
+      if (i) await user.setUserInfo("id_token", i);
+      if (e) await user.setUserInfo("entitlements_token", e);
+    }
+  },
 
-    getRiotGeo: async (): Promise<void> => {
-        const [accessToken, idToken] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("id_token"),
-        ]);
+  /**
+   * Resolve Riot Geo. This endpoint is sensitive to stale tokens.
+   * We strictly validate inputs and surface a clean error if 401.
+   */
+  getRiotGeo: async (): Promise<void> => {
+    const ctx = await readAuthContext();
+    if (!ctx.accessToken || !ctx.idToken) throw new Error("AUTH_MISSING_TOKEN_FOR_GEO");
 
-        const options = {
-            method: "PUT",
-            url: "https://riot-geo.pas.si.riotgames.com/pas/v1/product/valorant",
-            data: {
-                id_token: idToken,
-            },
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-            },
-        };
+    const options: AxiosRequestConfig = {
+      method: "PUT",
+      url: "https://riot-geo.pas.si.riotgames.com/pas/v1/product/valorant",
+      data: { id_token: ctx.idToken },
+      headers: { Authorization: `Bearer ${ctx.accessToken}` },
+    };
 
-        const response = await requestWithHeaders(options);
+    try {
+      const response = await requestWithHeaders(options);
+      const region = response?.data?.affinities?.live;
+      if (typeof region === "string" && region) {
+        await user.setUserInfo("pp", region);
+      } else {
+        // If API shape changes, fail softly—downstream calls will guard on pp
+        // eslint-disable-next-line no-console
+        console.warn("[getRiotGeo] Live affinity not found in response");
+      }
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        // Token is invalid/expired – let the caller decide whether to attempt re-auth.
+        throw new Error("AUTH_UNAUTHORIZED_GEO");
+      }
+      throw err;
+    }
+  },
 
-        await user.setUserInfo("pp", response.data.affinities.live);
-    },
+  getRiotVersion: async (): Promise<void> => {
+    const options: AxiosRequestConfig = { method: "GET", url: "https://valorant-api.com/v1/version" };
+    const response = await requestWithHeaders(options);
+    const version = response?.data?.data?.riotClientVersion;
+    if (typeof version === "string" && version) {
+      await secureStore.setItem("riot_version", version);
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn("[getRiotVersion] riotClientVersion not present");
+    }
+  },
 
-    getRiotVersion: async (): Promise<void> => {
-        const options = {
-            method: "GET",
-            url: "https://valorant-api.com/v1/version",
-        };
+  getUserBalance: async (): Promise<void> => {
+    const ctx = await readAuthContext();
+    assertAuthReady(ctx);
 
-        const response = await requestWithHeaders(options);
-        await secureStore.setItem("riot_version", response.data.data.riotClientVersion);
-    },
+    const options: AxiosRequestConfig = {
+      method: "GET",
+      url: `https://pd.${ctx.pp}.a.pvp.net/store/v1/wallet/${ctx.sub}`,
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        "X-Riot-Entitlements-JWT": ctx.entitlementsToken,
+        "X-Riot-ClientPlatform": X_RIOT_CLIENT_PLATFORM,
+        "X-Riot-ClientVersion": ctx.riotVersion,
+      },
+    };
 
-    getUserBalance: async (): Promise<void> => {
-        const [accessToken, entitlementsToken, sub, pp, riotVersion] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("entitlements_token"),
-            user.getUserInfo("sub"),
-            user.getUserInfo("pp"),
-            secureStore.getItem("riot_version"),
-        ]);
+    const response: AxiosResponse<WalletResponse> = await requestWithHeaders(options);
+    const balances = response?.data?.Balances || {};
 
-        const options = {
-            method: "GET",
-            url: `https://pd.${pp}.a.pvp.net/store/v1/wallet/${sub}`,
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Riot-Entitlements-JWT": `${entitlementsToken}`,
-                "X-Riot-ClientPlatform": X_Riot_ClientPlatform,
-                "X-Riot-ClientVersion": riotVersion,
-            },
-        };
+    await user.setUserInfo("radianite_point", String(balances[BALANCE_IDS.RP] ?? "0"));
+    await user.setUserInfo("valorant_point", String(balances[BALANCE_IDS.VP] ?? "0"));
+    await user.setUserInfo("kingdom_credit", String(balances[BALANCE_IDS.KC] ?? "0"));
+  },
 
-        const response: AxiosResponse<WalletResponse> = await requestWithHeaders(options);
+  getFrontShop: async () => {
+    const ctx = await readAuthContext();
+    assertAuthReady(ctx);
 
-        const balance = {
-            radianitePoint: response.data.Balances["e59aa87c-4cbf-517a-5983-6e81511be9b7"].toString(),
-            valorantPoint: response.data.Balances["85ad13f7-3d1b-5128-9eb2-7cd8ee0b5741"].toString(),
-            kingdomCredit: response.data.Balances["85ca954a-41f2-ce94-9b45-8ca3dd39a00d"].toString(),
-        };
+    const options: AxiosRequestConfig = {
+      method: "POST",
+      url: `https://pd.${ctx.pp}.a.pvp.net/store/v3/storefront/${ctx.sub}`,
+      data: {}, // avoid sending "{}" as a string
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        "X-Riot-Entitlements-JWT": ctx.entitlementsToken,
+        "X-Riot-ClientPlatform": X_RIOT_CLIENT_PLATFORM,
+        "X-Riot-ClientVersion": ctx.riotVersion,
+      },
+    };
 
-        await user.setUserInfo("radianite_point", balance.radianitePoint);
-        await user.setUserInfo("valorant_point", balance.valorantPoint);
-        await user.setUserInfo("kingdom_credit", balance.kingdomCredit);
-    },
+    const response: AxiosResponse<StorefrontResponse> = await requestWithHeaders(options);
 
-    getFrontShop: async () => {
-        const [accessToken, entitlementsToken, sub, pp, riotVersion] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("entitlements_token"),
-            user.getUserInfo("sub"),
-            user.getUserInfo("pp"),
-            secureStore.getItem("riot_version"),
-        ]);
+    const { SkinsPanelLayout, FeaturedBundle, BonusStore, PluginStores, AccessoryStore } = response.data || {};
+    if (SkinsPanelLayout?.SingleItemStoreOffers) {
+      return {
+        plugins: PluginStores,
+        bundles: FeaturedBundle,
+        offers: SkinsPanelLayout,
+        nightMarket: BonusStore,
+        accessoryStore: AccessoryStore,
+      };
+    }
+    return undefined;
+  },
 
-        const options = {
-            method: "POST",
-            url: `https://pd.${pp}.a.pvp.net/store/v3/storefront/${sub}`,
-            data: "{}",
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Riot-Entitlements-JWT": `${entitlementsToken}`,
-                "X-Riot-ClientPlatform": X_Riot_ClientPlatform,
-                "X-Riot-ClientVersion": riotVersion,
-            },
-        };
+  getBundle: async (id: string) => {
+    if (!id) return undefined;
+    const options: AxiosRequestConfig = {
+      method: "GET",
+      url: `https://valorant-api.com/v1/bundles/${encodeURIComponent(id)}`,
+    };
+    const response = await requestWithHeaders(options);
+    return response?.data?.data;
+  },
 
-        const response: AxiosResponse<StorefrontResponse> = await axios.request(options);
+  getAccountXP: async () => {
+    const ctx = await readAuthContext();
+    assertAuthReady(ctx);
 
-        if (response.data.SkinsPanelLayout.SingleItemStoreOffers) {
-            return {
-                plugins: response.data.PluginStores,
-                bundles: response.data.FeaturedBundle,
-                offers: response.data.SkinsPanelLayout,
-                nightMarket: response.data?.BonusStore,
-                accessoryStore: response.data.AccessoryStore,
-            };
-        }
-    },
+    const options: AxiosRequestConfig = {
+      method: "GET",
+      url: `https://pd.${ctx.pp}.a.pvp.net/account-xp/v1/players/${ctx.sub}`,
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        "X-Riot-Entitlements-JWT": ctx.entitlementsToken,
+        "X-Riot-ClientPlatform": X_RIOT_CLIENT_PLATFORM,
+        "X-Riot-ClientVersion": ctx.riotVersion,
+      },
+    };
 
-    getBundle: async (id: string) => {
-        const options = {
-            method: "GET",
-            url: `https://valorant-api.com/v1/bundles/${id}`,
-        };
+    const response: AxiosResponse<AccountXPResponse> = await requestWithHeaders(options);
+    const lvl = response?.data?.Progress?.Level;
+    const xp = response?.data?.Progress?.XP;
 
-        try {
-            const response = await axios.request(options);
-            return response.data.data;
-        } catch (error) {
-            console.error(error);
-        }
-    },
+    if (Number.isFinite(lvl)) await user.setUserInfo("level", String(lvl));
+    if (Number.isFinite(xp)) await user.setUserInfo("xp", String(xp));
+  },
 
-    getAccountXP: async () => {
-        const [accessToken, entitlementsToken, sub, pp, riotVersion] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("entitlements_token"),
-            user.getUserInfo("sub"),
-            user.getUserInfo("pp"),
-            secureStore.getItem("riot_version"),
-        ]);
+  getPlayerLoadout: async () => {
+    const ctx = await readAuthContext();
+    assertAuthReady(ctx);
 
-        const options = {
-            method: "GET",
-            url: `https://pd.${pp}.a.pvp.net/account-xp/v1/players/${sub}`,
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Riot-Entitlements-JWT": `${entitlementsToken}`,
-                "X-Riot-ClientPlatform": X_Riot_ClientPlatform,
-                "X-Riot-ClientVersion": riotVersion,
-            },
-        };
+    const options: AxiosRequestConfig = {
+      method: "GET",
+      url: `https://pd.${ctx.pp}.a.pvp.net/personalization/v2/players/${ctx.sub}/playerloadout`,
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        "X-Riot-Entitlements-JWT": ctx.entitlementsToken,
+        "X-Riot-ClientPlatform": X_RIOT_CLIENT_PLATFORM,
+        "X-Riot-ClientVersion": ctx.riotVersion,
+      },
+    };
 
-        const response: AxiosResponse<AccountXPResponse> = await axios.request(options);
+    const response: AxiosResponse<PlayerLoadoutResponse> = await requestWithHeaders(options);
+    const cardId = response?.data?.Identity?.PlayerCardID;
+    if (typeof cardId === "string") await user.setUserInfo("player_card_id", cardId);
 
-        await user.setUserInfo("level", response.data.Progress.Level.toString());
-        await user.setUserInfo("xp", response.data.Progress.XP.toString());
-    },
+    return response.data;
+  },
 
-    getPlayerLoadout: async () => {
-        const [accessToken, entitlementsToken, sub, pp, riotVersion] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("entitlements_token"),
-            user.getUserInfo("sub"),
-            user.getUserInfo("pp"),
-            secureStore.getItem("riot_version"),
-        ]);
+  getPlayerRankAndRR: async () => {
+    const [gameName, tagLine, pp] = await Promise.all([
+      user.getUserInfo("game_name"),
+      user.getUserInfo("tag_line"),
+      user.getUserInfo("pp"),
+    ]);
 
-        const options = {
-            method: "GET",
-            url: `https://pd.${pp}.a.pvp.net/personalization/v2/players/${sub}/playerloadout`,
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Riot-Entitlements-JWT": `${entitlementsToken}`,
-                "X-Riot-ClientPlatform": X_Riot_ClientPlatform,
-                "X-Riot-ClientVersion": riotVersion,
-            },
-        };
+    if (typeof gameName !== "string" || typeof tagLine !== "string" || typeof pp !== "string") {
+      return;
+    }
 
-        const response: AxiosResponse<PlayerLoadoutResponse> = await requestWithHeaders(options);
-        await user.setUserInfo("player_card_id", response.data.Identity.PlayerCardID);
-        return response.data;
-    },
+    const options: AxiosRequestConfig = {
+      method: "GET",
+      url: `https://api.kyroskoh.xyz/valorant/v1/mmr/${pp}/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`,
+    };
 
-    getPlayerRankAndRR: async () => {
-        const [gameName, tagLine, pp] = await Promise.all([
-            user.getUserInfo("game_name"),
-            user.getUserInfo("tag_line"),
-            user.getUserInfo("pp"),
-        ]);
+    try {
+      const response: AxiosResponse = await requestWithHeaders(options);
+      const data = response?.data;
+      if (typeof data === "string" && data.includes(" - ")) {
+        const [rank, rrPart] = data.split(" - ");
+        const rr = rrPart?.split("RR")?.[0];
+        if (rank) await user.setUserInfo("rank", rank);
+        if (rr) await user.setUserInfo("rr", rr);
+      }
+    } catch {
+      // Non-critical enrichment; ignore failures silently
+    }
+  },
 
-        const options = {
-            method: "GET",
-            url: `https://api.kyroskoh.xyz/valorant/v1/mmr/${pp}/${gameName}/${tagLine}`,
-        };
+  getOwnedItems: async (itemTypeId: string) => {
+    const ctx = await readAuthContext();
+    assertAuthReady(ctx);
+    if (!itemTypeId) throw new Error("OWNED_ITEMS_MISSING_TYPE");
 
-        try {
-            const response: AxiosResponse = await axios.request(options);
+    const options: AxiosRequestConfig = {
+      method: "GET",
+      url: `https://pd.${ctx.pp}.a.pvp.net/store/v1/entitlements/${ctx.sub}/${itemTypeId}`,
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        "X-Riot-Entitlements-JWT": ctx.entitlementsToken,
+        "X-Riot-ClientPlatform": X_RIOT_CLIENT_PLATFORM,
+        "X-Riot-ClientVersion": ctx.riotVersion,
+      },
+    };
 
-            if (response.data) {
-                await user.setUserInfo("rank", response.data.split(" - ")[0]);
-                await user.setUserInfo("rr", response.data.split(" - ")[1].split("RR")[0]);
-            }
-        } catch {
-        }
-    },
+    const response: AxiosResponse<OwnedItem> = await requestWithHeaders(options);
+    return response.data;
+  },
 
-    getOwnedItems: async (itemTypeId: string) => {
-        const [accessToken, entitlementsToken, sub, pp, riotVersion] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("entitlements_token"),
-            user.getUserInfo("sub"),
-            user.getUserInfo("pp"),
-            secureStore.getItem("riot_version"),
-        ]);
+  setPlayerLoadout: async (
+    playerLoadout: PlayerLoadoutResponse,
+    ID: string,
+    skinID: string,
+    skinLevelID: string,
+    chromaID: string
+  ) => {
+    const ctx = await readAuthContext();
+    assertAuthReady(ctx);
 
-        const options = {
-            method: "GET",
-            url: `https://pd.${pp}.a.pvp.net/store/v1/entitlements/${sub}/${itemTypeId}`,
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Riot-Entitlements-JWT": `${entitlementsToken}`,
-                "X-Riot-ClientPlatform": X_Riot_ClientPlatform,
-                "X-Riot-ClientVersion": riotVersion,
-            },
-        };
+    const clean: any = { ...playerLoadout };
+    delete clean.Subject;
+    delete clean.Version;
 
-        const response: AxiosResponse<OwnedItem> = await requestWithHeaders(options);
+    const options: AxiosRequestConfig = {
+      method: "PUT",
+      url: `https://pd.${ctx.pp}.a.pvp.net/personalization/v2/players/${ctx.sub}/playerloadout`,
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        "X-Riot-Entitlements-JWT": ctx.entitlementsToken,
+        "X-Riot-ClientPlatform": X_RIOT_CLIENT_PLATFORM,
+        "X-Riot-ClientVersion": ctx.riotVersion,
+      },
+      data: {
+        ...clean,
+        Guns: clean.Guns.map((gun: PlayerLoadoutGun) =>
+          gun.ID === ID
+            ? {
+                ID,
+                SkinID: skinID,
+                SkinLevelID: skinLevelID,
+                ChromaID: chromaID,
+                Attachments: [],
+              }
+            : gun
+        ),
+      },
+    };
 
-        return response.data;
-    },
+    const response: AxiosResponse<PlayerLoadoutResponse> = await requestWithHeaders(options);
+    return response.data;
+  },
 
-    setPlayerLoadout: async (playerLoadout: PlayerLoadoutResponse, ID: string, skinID: string, skinLevelID: string, chromaID: string) => {
-        const [accessToken, entitlementsToken, sub, pp, riotVersion] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("entitlements_token"),
-            user.getUserInfo("sub"),
-            user.getUserInfo("pp"),
-            secureStore.getItem("riot_version"),
-        ]);
+  getPlayerFavoriteSkin: async () => {
+    const ctx = await readAuthContext();
+    assertAuthReady(ctx);
 
-        // @ts-ignore
-        delete playerLoadout["Subject"];
-        // @ts-ignore
-        delete playerLoadout["Version"];
+    const options: AxiosRequestConfig = {
+      method: "GET",
+      url: `https://pd.${ctx.pp}.a.pvp.net/favorites/v1/players/${ctx.sub}/favorites`,
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        "X-Riot-Entitlements-JWT": ctx.entitlementsToken,
+        "X-Riot-ClientPlatform": X_RIOT_CLIENT_PLATFORM,
+        "X-Riot-ClientVersion": ctx.riotVersion,
+      },
+    };
 
-        const options = {
-            method: "PUT",
-            url: `https://pd.${pp}.a.pvp.net/personalization/v2/players/${sub}/playerloadout`,
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Riot-Entitlements-JWT": `${entitlementsToken}`,
-                "X-Riot-ClientPlatform": X_Riot_ClientPlatform,
-                "X-Riot-ClientVersion": riotVersion,
-            },
-            data: {
-                ...playerLoadout,
-                Guns: [
-                    ...playerLoadout.Guns.map((gun: PlayerLoadoutGun) => {
-                        if (gun.ID === ID) {
-                            return {
-                                ID: ID,
-                                SkinID: skinID,
-                                SkinLevelID: skinLevelID,
-                                ChromaID: chromaID,
-                                Attachments: [],
-                            };
-                        }
-                        return gun;
-                    }),
-                ],
-            },
-        };
+    const response: AxiosResponse<FavoriteSkin> = await requestWithHeaders(options);
+    return response.data;
+  },
 
-        const response: AxiosResponse<PlayerLoadoutResponse> = await requestWithHeaders(options);
+  addPlayerFavoriteSkin: async (itemID: string) => {
+    const ctx = await readAuthContext();
+    assertAuthReady(ctx);
+    if (!itemID) throw new Error("FAVORITES_MISSING_ITEM");
 
-        return response.data;
-    },
+    const options: AxiosRequestConfig = {
+      method: "POST",
+      url: `https://pd.${ctx.pp}.a.pvp.net/favorites/v1/players/${ctx.sub}/favorites`,
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        "X-Riot-Entitlements-JWT": ctx.entitlementsToken,
+        "X-Riot-ClientPlatform": X_RIOT_CLIENT_PLATFORM,
+        "X-Riot-ClientVersion": ctx.riotVersion,
+      },
+      data: { ItemID: itemID },
+    };
 
-    getPlayerFavoriteSkin: async () => {
-        const [accessToken, entitlementsToken, sub, pp, riotVersion] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("entitlements_token"),
-            user.getUserInfo("sub"),
-            user.getUserInfo("pp"),
-            secureStore.getItem("riot_version"),
-        ]);
+    const response = await requestWithHeaders(options);
+    return response.data;
+  },
 
-        const options = {
-            method: "GET",
-            url: `https://pd.${pp}.a.pvp.net/favorites/v1/players/${sub}/favorites`,
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Riot-Entitlements-JWT": `${entitlementsToken}`,
-                "X-Riot-ClientPlatform": X_Riot_ClientPlatform,
-                "X-Riot-ClientVersion": riotVersion,
-            },
-        };
+  deletePlayerFavoriteSkin: async (itemID: string) => {
+    const ctx = await readAuthContext();
+    assertAuthReady(ctx);
+    if (!itemID) throw new Error("FAVORITES_MISSING_ITEM");
 
-        const response: AxiosResponse<FavoriteSkin> = await requestWithHeaders(options);
+    const options: AxiosRequestConfig = {
+      method: "DELETE",
+      url: `https://pd.${ctx.pp}.a.pvp.net/favorites/v1/players/${ctx.sub}/favorites/${itemID.replace(/-/g, "")}`,
+      headers: {
+        Authorization: `Bearer ${ctx.accessToken}`,
+        "X-Riot-Entitlements-JWT": ctx.entitlementsToken,
+        "X-Riot-ClientPlatform": X_RIOT_CLIENT_PLATFORM,
+        "X-Riot-ClientVersion": ctx.riotVersion,
+      },
+    };
 
-        return response.data;
-    },
-
-    addPlayerFavoriteSkin: async (itemID: string) => {
-        const [accessToken, entitlementsToken, sub, pp, riotVersion] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("entitlements_token"),
-            user.getUserInfo("sub"),
-            user.getUserInfo("pp"),
-            secureStore.getItem("riot_version"),
-        ]);
-
-        const options = {
-            method: "POST",
-            url: `https://pd.${pp}.a.pvp.net/favorites/v1/players/${sub}/favorites`,
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Riot-Entitlements-JWT": `${entitlementsToken}`,
-                "X-Riot-ClientPlatform": X_Riot_ClientPlatform,
-                "X-Riot-ClientVersion": riotVersion,
-            },
-            data: {
-                ItemID: itemID,
-            },
-        };
-
-        const response: AxiosResponse = await requestWithHeaders(options);
-
-        return response.data;
-    },
-
-    deletePlayerFavoriteSkin: async (itemID: string) => {
-        const [accessToken, entitlementsToken, sub, pp, riotVersion] = await Promise.all([
-            user.getUserInfo("access_token"),
-            user.getUserInfo("entitlements_token"),
-            user.getUserInfo("sub"),
-            user.getUserInfo("pp"),
-            secureStore.getItem("riot_version"),
-        ]);
-
-        const options = {
-            method: "DELETE",
-            url: `https://pd.${pp}.a.pvp.net/favorites/v1/players/${sub}/favorites/${itemID.replace(/-/g, "")}`,
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "X-Riot-Entitlements-JWT": `${entitlementsToken}`,
-                "X-Riot-ClientPlatform": X_Riot_ClientPlatform,
-                "X-Riot-ClientVersion": riotVersion,
-            },
-        };
-
-        const response: AxiosResponse = await requestWithHeaders(options);
-
-        return response.data;
-    },
+    const response = await requestWithHeaders(options);
+    return response.data;
+  },
 };
 
 export default valorantProvider;
