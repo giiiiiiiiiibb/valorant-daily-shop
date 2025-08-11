@@ -23,18 +23,18 @@ const UserList = () => {
     [navigation]
   );
 
+  /**
+   * Silent re-auth path:
+   * - Set current user
+   * - Ask auth provider to select account and re-bootstrap quietly
+   * - Do NOT open login modal here; leave it to the +Add Account button only.
+   */
   const handleSelect = useCallback(
     async (username: string) => {
-      // Persist selection for downstream providers (UserProvider uses it)
       await AsyncStorage.setItem("current_user", username);
-
-      // Attempt silent reuse; if tokens are missing/invalid, we'll open Login
-      const result = await selectAccount(username);
-      if (result.needsInteractive) {
-        navigation.navigate("Login");
-      }
+      await selectAccount(username, { interactive: false }); // provider should re-auth or surface a toast on failure
     },
-    [navigation, selectAccount]
+    [selectAccount]
   );
 
   const handleRelogin = useCallback(() => navigation.navigate("Login"), [navigation]);
@@ -43,8 +43,7 @@ const UserList = () => {
     useCallback(() => {
       setUsers({});
       user.getAllUsers().then((data) => setUsers(data));
-      // proactively clear transient secure tokens so reuse relies on per-user storage
-      // (keeps flows deterministic between accounts)
+      // Clear transient tokens to avoid cross-account leakage
       secureStore.removeItem("access_token").catch(() => {});
       secureStore.removeItem("id_token").catch(() => {});
     }, [])
