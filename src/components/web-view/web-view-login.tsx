@@ -13,7 +13,16 @@ import { getWebViewState, saveWebViewState, WebViewState } from "@/utils/web-vie
 // routes
 import { resetToHome } from "@/routes/navigation/navigation-service";
 
-const INITIAL_URL = "https://auth.riotgames.com/authorize?redirect_uri=https%3A%2F%2Fplayvalorant.com%2Fopt_in&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid";
+const INITIAL_URL = (() => {
+  const params = new URLSearchParams({
+    redirect_uri: "http://localhost/",
+    client_id: "play-valorant-web-prod",
+    response_type: "token id_token",
+    nonce: "1",
+    scope: "account openid",
+  });
+  return `https://auth.riotgames.com/authorize?${params.toString()}`;
+})();
 
 const LoginWebView = () => {
   const { palette } = useThemeContext();
@@ -47,6 +56,8 @@ const LoginWebView = () => {
       const params = new URLSearchParams(hash);
       const access = params.get("access_token");
       const id = params.get("id_token");
+      const expires = params.get("expires_in");
+
       if (!access || !id) return false;
 
       setLoading(true);
@@ -54,14 +65,19 @@ const LoginWebView = () => {
         await secureStore.setItem("access_token", access);
         await secureStore.setItem("id_token", id);
 
-        // Finish bootstrap (entitlements, user, balances, etc.) and flip auth state
+        if (expires) {
+          const expiresAt = Date.now() + parseInt(expires) * 1000;
+          await secureStore.setItem("token_expiry", expiresAt.toString());
+        }
+
+        // Trigger the full login flow (user info, balances, etc.)
         await loginInteractive();
 
-        // Reset to the app's Home at the ROOT level (dismiss modal reliably)
         resetToHome();
       } finally {
         setLoading(false);
       }
+
       return true;
     },
     [loginInteractive]
@@ -75,7 +91,10 @@ const LoginWebView = () => {
       } catch {
         // ignore
       }
-      await parseTokenFromUrl(url);
+
+      if (url.startsWith("http://localhost/")) {
+        await parseTokenFromUrl(url);
+      }
     },
     [parseTokenFromUrl]
   );
