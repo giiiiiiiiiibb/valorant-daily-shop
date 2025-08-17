@@ -13,16 +13,7 @@ import { getWebViewState, saveWebViewState, WebViewState } from "@/utils/web-vie
 // routes
 import { resetToHome } from "@/routes/navigation/navigation-service";
 
-const INITIAL_URL = (() => {
-  const params = new URLSearchParams({
-    redirect_uri: "http://localhost/",
-    client_id: "play-valorant-web-prod",
-    response_type: "token id_token",
-    nonce: "1",
-    scope: "account openid",
-  });
-  return `https://auth.riotgames.com/authorize?${params.toString()}`;
-})();
+const INITIAL_URL = "https://auth.riotgames.com/authorize?redirect_uri=http%3A%2F%2Flocalhost%2F&client_id=play-valorant-web-prod&response_type=token%20id_token&nonce=1&scope=account%20openid";
 
 const LoginWebView = () => {
   const { palette } = useThemeContext();
